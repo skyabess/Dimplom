@@ -1,0 +1,83 @@
+{
+  "name": "land-contracts-frontend",
+  "version": "1.0.0",
+  "description": "Frontend application for land contracts automation system",
+  "private": true,
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.2.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.1",
+    "react-hook-form": "^7.45.4",
+    "@hookform/resolvers": "^3.3.2",
+    "yup": "^1.3.3",
+    "@mui/material": "^5.14.18",
+    "@mui/icons-material": "^5.14.18",
+    "@mui/x-data-grid": "^6.18.2",
+    "@mui/x-date-pickers": "^7.17.0",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "axios": "^1.6.2",
+    "react-i18next": "^13.5.0",
+    "i18next": "^23.7.6",
+    "i18next-browser-languagedetector": "^7.2.0",
+    "react-dropzone": "^14.2.3",
+    "react-pdf": "^7.5.1",
+    "chart.js": "^4.4.1",
+    "react-chartjs-2": "^5.2.0",
+    "react-hook-form-mui": "^7.6.2",
+    "react-hot-toast": "^2.4.1",
+    "date-fns": "^2.30.0",
+    "react-window": "^1.8.8",
+    "react-intersection-observer": "^9.5.3",
+    "react-virtualized-auto-sizer": "^1.0.20",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^4.2.1",
+    "react-signature-canvas": "^1.0.3",
+    "crypto-js": "^4.2.0",
+    "js-cookie": "^3.0.5",
+    "lodash": "^4.17.21",
+    "classnames": "^2.3.2",
+    "prop-types": "^15.8.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@types/node": "^20.8.7",
+    "@types/leaflet": "^1.9.6",
+    "@types/crypto-js": "^4.2.1",
+    "@types/js-cookie": "^3.0.6",
+    "@types/lodash": "^4.14.202",
+    "@types/classnames": "^2.3.1",
+    "@types/prop-types": "^15.7.11",
+    "@types/react-window": "^1.8.8",
+    "@types/react-virtualized-auto-sizer": "^1.0.4",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "eslint": "^8.54.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.4",
+    "typescript": "^5.3.2",
+    "vite": "^5.0.5"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

@@ -1,0 +1,218 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database with PostGIS extension
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: land_contract_db
+    environment:
+      POSTGRES_DB: land_contract_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - land_contract_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and Celery
+  redis:
+    image: redis:7-alpine
+    container_name: land_contract_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - land_contract_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django backend application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: land_contract_backend
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=your-secret-key-here
+      - DB_HOST=db
+      - DB_NAME=land_contract_db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_USE_TLS=True
+      - EMAIL_HOST_USER=your-email@gmail.com
+      - EMAIL_HOST_PASSWORD=your-app-password
+      - AWS_ACCESS_KEY_ID=your-aws-access-key
+      - AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+      - AWS_STORAGE_BUCKET_NAME=your-s3-bucket
+      - AWS_S3_REGION_NAME=eu-central-1
+    volumes:
+      - ./backend:/app
+      - media_files:/app/media
+      - static_files:/app/staticfiles
+      - log_files:/app/logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - land_contract_network
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 core.wsgi:application"
+
+  # Celery worker
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: land_contract_celery_worker
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=your-secret-key-here
+      - DB_HOST=db
+      - DB_NAME=land_contract_db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_USE_TLS=True
+      - EMAIL_HOST_USER=your-email@gmail.com
+      - EMAIL_HOST_PASSWORD=your-app-password
+      - AWS_ACCESS_KEY_ID=your-aws-access-key
+      - AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+      - AWS_STORAGE_BUCKET_NAME=your-s3-bucket
+      - AWS_S3_REGION_NAME=eu-central-1
+    volumes:
+      - ./backend:/app
+      - media_files:/app/media
+      - log_files:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - land_contract_network
+    command: celery -A core worker --loglevel=info --concurrency=4
+
+  # Celery beat scheduler
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: land_contract_celery_beat
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=your-secret-key-here
+      - DB_HOST=db
+      - DB_NAME=land_contract_db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    volumes:
+      - ./backend:/app
+      - log_files:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - land_contract_network
+    command: celery -A core beat --loglevel=info
+
+  # Celery flower monitoring
+  celery_flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: land_contract_celery_flower
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    networks:
+      - land_contract_network
+    command: celery -A core flower --port=5555
+
+  # React frontend application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: land_contract_frontend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api
+      - REACT_APP_WS_URL=ws://localhost:8000/ws
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - land_contract_network
+    command: npm start
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: land_contract_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - static_files:/var/www/static
+      - media_files:/var/www/media
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - land_contract_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_files:
+  static_files:
+  log_files:
+
+networks:
+  land_contract_network:
+    driver: bridge
