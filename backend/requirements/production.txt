@@ -15,18 +15,18 @@ hiredis==2.2.3
 
 # Authentication & Security
 djangorestframework-simplejwt==5.3.0
-cryptography>=41.0.7,<42.0.0
+cryptography==46.0.1
 PyJWT==2.8.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
 # Background tasks
-celery[redis]==5.3.4
+celery==5.4.0 + redis==4.6.0
 flower==2.0.1
 
 # API & Serialization
 drf-spectacular==0.27.0
-drf-spectacular-sidecar==2025.5.1
+drf-spectacular-sidecar==2024.12.1
 marshmallow==3.20.1
 marshmallow-enum==1.5.1
 
