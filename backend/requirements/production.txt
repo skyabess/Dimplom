@@ -21,7 +21,8 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
 # Background tasks
-celery==5.4.0 + redis==4.6.0
+celery==5.4.0
+redis==4.6.0
 flower==2.0.1
 
 # API & Serialization
