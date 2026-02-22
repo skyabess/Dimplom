@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies - ПРАВИЛЬНЫЙ формат многострочной команды
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         postgresql-client \
@@ -40,8 +40,7 @@ RUN mkdir -p /app/logs /app/media /app/staticfiles
 # Set permissions
 RUN chmod +x /app/manage.py
 
-# Collect static files
-RUN python manage.py collectstatic --noinput --settings=core.settings.production
+# ✅ УДАЛЕНО: RUN python manage.py collectstatic (выполняется в docker-compose command)
 
 # Expose port
 EXPOSE 8000
@@ -50,5 +49,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health/ || exit 1
 
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--max-requests", "1000", "--max-requests-jitter", "50", "core.wsgi:application"]
+# Run the application (миграции + collectstatic + gunicorn)
+CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --max-requests 1000 --max-requests-jitter 50 core.wsgi:application"]
