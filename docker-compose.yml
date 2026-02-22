@@ -40,11 +40,13 @@ services:
 
   # Django backend application
   backend:
-    build: .                                    
+    build:
+      context: ./backend              # ✅ ИСПРАВЛЕНО: путь к Dockerfile
+      dockerfile: Dockerfile
     container_name: land_contract_backend
     environment:
       - DEBUG=False
-      - SECRET_KEY=django-insecure-super-secret-key-20260223
+      - SECRET_KEY=django-insecure-super-secret-key-20260223-landdeal
       - DB_HOST=db
       - DB_NAME=land_contract_db
       - DB_USER=postgres
@@ -56,14 +58,14 @@ services:
       - EMAIL_HOST=smtp.gmail.com
       - EMAIL_PORT=587
       - EMAIL_USE_TLS=True
-      - EMAIL_HOST_USER=your-email@gmail.com    
+      - EMAIL_HOST_USER=your-email@gmail.com      # ✅ ИСПРАВЛЕНО: убрал markdown
       - EMAIL_HOST_PASSWORD=your-app-password
       - AWS_ACCESS_KEY_ID=your-aws-access-key
       - AWS_SECRET_ACCESS_KEY=your-aws-secret-key
       - AWS_STORAGE_BUCKET_NAME=your-s3-bucket
       - AWS_S3_REGION_NAME=eu-central-1
     volumes:
-      - .:/app                                   
+      - ./backend:/app                    # ✅ ИСПРАВЛЕНО: монтируем backend
       - media_files:/app/media
       - static_files:/app/staticfiles
       - log_files:/app/logs
@@ -83,11 +85,13 @@ services:
 
   # Celery worker
   celery_worker:
-    build: .                                    
+    build:
+      context: ./backend              # ✅ ИСПРАВЛЕНО
+      dockerfile: Dockerfile
     container_name: land_contract_celery_worker
     environment:
       - DEBUG=False
-      - SECRET_KEY=django-insecure-super-secret-key-20260223
+      - SECRET_KEY=django-insecure-super-secret-key-20260223-landdeal
       - DB_HOST=db
       - DB_NAME=land_contract_db
       - DB_USER=postgres
@@ -99,14 +103,14 @@ services:
       - EMAIL_HOST=smtp.gmail.com
       - EMAIL_PORT=587
       - EMAIL_USE_TLS=True
-      - EMAIL_HOST_USER=your-email@gmail.com      
+      - EMAIL_HOST_USER=your-email@gmail.com      # ✅ ИСПРАВЛЕНО
       - EMAIL_HOST_PASSWORD=your-app-password
       - AWS_ACCESS_KEY_ID=your-aws-access-key
       - AWS_SECRET_ACCESS_KEY=your-aws-secret-key
       - AWS_STORAGE_BUCKET_NAME=your-s3-bucket
       - AWS_S3_REGION_NAME=eu-central-1
     volumes:
-      - .:/app                                   
+      - ./backend:/app                    # ✅ ИСПРАВЛЕНО
       - media_files:/app/media
       - log_files:/app/logs
     depends_on:
@@ -120,11 +124,13 @@ services:
 
   # Celery beat scheduler
   celery_beat:
-    build: .                                    
+    build:
+      context: ./backend              # ✅ ИСПРАВЛЕНО
+      dockerfile: Dockerfile
     container_name: land_contract_celery_beat
     environment:
       - DEBUG=False
-      - SECRET_KEY=django-insecure-super-secret-key-20260223
+      - SECRET_KEY=django-insecure-super-secret-key-20260223-landdeal
       - DB_HOST=db
       - DB_NAME=land_contract_db
       - DB_USER=postgres
@@ -134,7 +140,7 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
     volumes:
-      - .:/app                                   
+      - ./backend:/app                    # ✅ ИСПРАВЛЕНО
       - log_files:/app/logs
     depends_on:
       db:
@@ -147,7 +153,9 @@ services:
 
   # Celery flower monitoring
   celery_flower:
-    build: .                                    
+    build:
+      context: ./backend              # ✅ ИСПРАВЛЕНО
+      dockerfile: Dockerfile
     container_name: land_contract_celery_flower
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
