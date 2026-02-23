@@ -27,6 +27,7 @@ flower==2.0.1
 # API & Serialization
 drf-spectacular==0.27.0
 drf-spectacular-sidecar==2024.12.1
+drf-yasg==1.21.7
 marshmallow==3.20.1
 marshmallow-enum==1.5.1
 
@@ -79,3 +80,4 @@ uvicorn==0.24.0
 # Security
 bandit==1.7.5
 safety==2.3.5
+setuptools>=65.5.0
