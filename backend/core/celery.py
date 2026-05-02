@@ -14,9 +14,9 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
-# Configure Celery beat schedule
-app.conf.beat_schedule = {
-    # Send daily contract expiry notifications
+### Configure Celery beat schedule
+app.conf.beat_schedule = {}
+'''    # Send daily contract expiry notifications
     'send-contract-expiry-notifications': {
         'task': 'apps.notifications.tasks.send_contract_expiry_notifications',
         'schedule': 60.0 * 60.0 * 24.0,  # Run daily
@@ -45,16 +45,16 @@ app.conf.beat_schedule = {
         'task': 'apps.core.tasks.backup_database',
         'schedule': 60.0 * 60.0 * 24.0,  # Run daily
     },
-}
+}'''
 
 # Configure task routing
 app.conf.task_routes = {
     'apps.users.tasks.*': {'queue': 'users'},
     'apps.contracts.tasks.*': {'queue': 'contracts'},
     'apps.land_plots.tasks.*': {'queue': 'land_plots'},
-    'apps.integrations.tasks.*': {'queue': 'integrations'},
-    'apps.notifications.tasks.*': {'queue': 'notifications'},
-    'apps.core.tasks.*': {'queue': 'core'},
+    #'apps.integrations.tasks.*': {'queue': 'integrations'},
+    #'apps.notifications.tasks.*': {'queue': 'notifications'},
+    #'apps.core.tasks.*': {'queue': 'core'},
 }
 
 # Configure task priorities

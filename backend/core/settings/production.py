@@ -122,8 +122,8 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Moscow'
-CELERY_BEAT_SCHEDULE = {
-    'cleanup-expired-tokens': {
+CELERY_BEAT_SCHEDULE = {}
+'''    'cleanup-expired-tokens': {
         'task': 'apps.authentication.tasks.cleanup_expired_tokens',
         'schedule': crontab(minute=0, hour='*/6'),  # Every 6 hours
     },
@@ -139,7 +139,7 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.integration.tasks.sync_land_plots_data',
         'schedule': crontab(minute=0, hour='*/12'),  # Every 12 hours
     },
-}
+}'''
 
 # Logging
 LOGGING = {
