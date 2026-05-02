@@ -23,7 +23,7 @@ from .serializers import (
     LandPlotSearchSerializer, LandPlotOwnerSerializer, LandPlotDocumentSerializer,
     LandPlotEncumbranceSerializer, LandPlotValuationSerializer
 )
-from users.permissions import (
+from apps.users.permissions import (
     CanManageLandPlots, CanViewLandPlots, IsOwnerOrReadOnly, IsAdminUser
 )
 
@@ -216,7 +216,7 @@ class LandPlotListView(generics.ListCreateAPIView):
             land_plot = serializer.save(created_by=request.user)
             
             # Log activity
-            from users.models import UserActivityLog
+            from apps.users.models import UserActivityLog
             UserActivityLog.objects.create(
                 user=request.user,
                 action='create_land_plot',
@@ -271,7 +271,7 @@ class LandPlotDetailView(generics.RetrieveUpdateDestroyAPIView):
             updated_land_plot = serializer.save()
             
             # Log activity
-            from users.models import UserActivityLog
+            from apps.users.models import UserActivityLog
             UserActivityLog.objects.create(
                 user=request.user,
                 action='edit_land_plot',
@@ -299,7 +299,7 @@ class LandPlotDetailView(generics.RetrieveUpdateDestroyAPIView):
         
         with transaction.atomic():
             # Log activity
-            from users.models import UserActivityLog
+            from apps.users.models import UserActivityLog
             UserActivityLog.objects.create(
                 user=request.user,
                 action='delete_land_plot',
@@ -433,7 +433,7 @@ class LandPlotOwnerListView(generics.ListCreateAPIView):
             owner = serializer.save(land_plot=land_plot)
             
             # Log activity
-            from users.models import UserActivityLog
+            from apps.users.models import UserActivityLog
             UserActivityLog.objects.create(
                 user=request.user,
                 action='add_land_plot_owner',
@@ -497,7 +497,7 @@ class LandPlotDocumentListView(generics.ListCreateAPIView):
             document.save()
             
             # Log activity
-            from users.models import UserActivityLog
+            from apps.users.models import UserActivityLog
             UserActivityLog.objects.create(
                 user=request.user,
                 action='upload_land_plot_document',

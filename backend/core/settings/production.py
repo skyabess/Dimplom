@@ -13,20 +13,27 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default=Csv(), cast=Csv)
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+DATABASE_OPTIONS = {
+    'sslmode': config('DB_SSLMODE', default='disable'),
+}
+for option_name, env_name in (
+    ('sslcert', 'DB_SSL_CERT'),
+    ('sslkey', 'DB_SSL_KEY'),
+    ('sslrootcert', 'DB_SSL_ROOT_CERT'),
+):
+    option_value = config(env_name, default='')
+    if option_value:
+        DATABASE_OPTIONS[option_name] = option_value
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': config('DB_NAME'),
         'USER': config('DB_USER'),
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
-        'OPTIONS': {
-            'sslmode': 'require',
-            'sslcert': config('DB_SSL_CERT', default=''),
-            'sslkey': config('DB_SSL_KEY', default=''),
-            'sslrootcert': config('DB_SSL_ROOT_CERT', default=''),
-        },
+        'OPTIONS': DATABASE_OPTIONS,
         'CONN_MAX_AGE': 60,
     }
 }
@@ -122,24 +129,7 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Europe/Moscow'
-CELERY_BEAT_SCHEDULE = {
-    'cleanup-expired-tokens': {
-        'task': 'apps.authentication.tasks.cleanup_expired_tokens',
-        'schedule': crontab(minute=0, hour='*/6'),  # Every 6 hours
-    },
-    'process-notifications': {
-        'task': 'apps.notifications.tasks.process_pending_notifications',
-        'schedule': crontab(minute='*/5'),  # Every 5 minutes
-    },
-    'backup-database': {
-        'task': 'apps.core.tasks.backup_database',
-        'schedule': crontab(minute=0, hour=2),  # Daily at 2 AM
-    },
-    'sync-with-rosreestr': {
-        'task': 'apps.integration.tasks.sync_land_plots_data',
-        'schedule': crontab(minute=0, hour='*/12'),  # Every 12 hours
-    },
-}
+CELERY_BEAT_SCHEDULE = {}
 
 # Logging
 LOGGING = {
@@ -286,11 +276,11 @@ USE_L10N = True
 
 # Static files
 STATIC_URL = '/static/'
-STATIC_ROOT = '/var/www/land-contracts/static/'
+STATIC_ROOT = '/app/staticfiles'
 
 # Media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = '/var/www/land-contracts/media/'
+MEDIA_ROOT = '/app/media'
 
 # Health checks
 HEALTH_CHECKS = {

@@ -1,19 +1,15 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 from . import views
 
 app_name = 'land_plots'
 
-router = DefaultRouter()
-router.register(r'categories', views.LandCategoryListView, basename='land-categories')
-router.register(r'purposes', views.LandPurposeListView, basename='land-purposes')
-router.register(r'regions', views.RegionListView, basename='regions')
-router.register(r'districts', views.DistrictListView, basename='districts')
-router.register(r'settlements', views.SettlementListView, basename='settlements')
-
 urlpatterns = [
     # Reference data endpoints
-    path('', include(router.urls)),
+    path('categories/', views.LandCategoryListView.as_view(), name='land-categories'),
+    path('purposes/', views.LandPurposeListView.as_view(), name='land-purposes'),
+    path('regions/', views.RegionListView.as_view(), name='regions'),
+    path('districts/', views.DistrictListView.as_view(), name='districts'),
+    path('settlements/', views.SettlementListView.as_view(), name='settlements'),
     
     # Land plot endpoints
     path('plots/', views.LandPlotListView.as_view(), name='land-plots'),

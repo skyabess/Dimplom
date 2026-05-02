@@ -46,6 +46,7 @@ services:
     container_name: land_contract_backend
     environment:
       - DEBUG=False
+      - ALLOWED_HOSTS=*
       - SECRET_KEY=django-insecure-super-secret-key-20260223-landdeal
       - DB_HOST=db
       - DB_NAME=land_contract_db
@@ -79,24 +80,38 @@ services:
     networks:
       - land_contract_network
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "python manage.py migrate --run-syncdb &&
              python manage.py collectstatic --noinput &&
              gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 core.wsgi:application"
 
-  # Nginx reverse proxy (исправлен - обслуживает frontend + backend)
+  # React frontend application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: land_contract_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - land_contract_network
+
+  # Nginx reverse proxy
   nginx:
-    image: nginx:alpine
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: land_contract_nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./frontend/dist:/usr/share/nginx/html:ro
       - static_files:/var/www/static
       - media_files:/var/www/media
     depends_on:
       - backend
+      - frontend
     networks:
       - land_contract_network
 
