@@ -1,13 +1,7 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 from . import views
 
 app_name = 'users'
-
-router = DefaultRouter()
-router.register(r'roles', views.UserRoleListView, basename='user-roles')
-router.register(r'sessions', views.UserSessionListView, basename='user-sessions')
-router.register(r'activity-logs', views.UserActivityLogListView, basename='user-activity-logs')
 
 urlpatterns = [
     # Authentication endpoints
@@ -25,6 +19,8 @@ urlpatterns = [
     # Digital signature
     path('digital-signature/upload/', views.DigitalSignatureUploadView.as_view(), name='digital-signature-upload'),
     
-    # Router endpoints
-    path('', include(router.urls)),
+    # User metadata endpoints
+    path('roles/', views.UserRoleListView.as_view(), name='user-roles'),
+    path('sessions/', views.UserSessionListView.as_view(), name='user-sessions'),
+    path('activity-logs/', views.UserActivityLogListView.as_view(), name='user-activity-logs'),
 ]

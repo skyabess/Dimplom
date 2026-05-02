@@ -14,47 +14,15 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
-### Configure Celery beat schedule
+# Configure Celery beat schedule.
+# No periodic tasks are registered until task modules are implemented.
 app.conf.beat_schedule = {}
-'''    # Send daily contract expiry notifications
-    'send-contract-expiry-notifications': {
-        'task': 'apps.notifications.tasks.send_contract_expiry_notifications',
-        'schedule': 60.0 * 60.0 * 24.0,  # Run daily
-    },
-    
-    # Clean up expired sessions
-    'cleanup-expired-sessions': {
-        'task': 'apps.users.tasks.cleanup_expired_sessions',
-        'schedule': 60.0 * 60.0,  # Run hourly
-    },
-    
-    # Sync with Rosreestr
-    'sync-rosreestr-data': {
-        'task': 'apps.integrations.tasks.sync_rosreestr_data',
-        'schedule': 60.0 * 60.0 * 6.0,  # Run every 6 hours
-    },
-    
-    # Generate daily reports
-    'generate-daily-reports': {
-        'task': 'apps.contracts.tasks.generate_daily_reports',
-        'schedule': 60.0 * 60.0 * 24.0,  # Run daily at midnight
-    },
-    
-    # Backup database
-    'backup-database': {
-        'task': 'apps.core.tasks.backup_database',
-        'schedule': 60.0 * 60.0 * 24.0,  # Run daily
-    },
-}'''
 
 # Configure task routing
 app.conf.task_routes = {
     'apps.users.tasks.*': {'queue': 'users'},
     'apps.contracts.tasks.*': {'queue': 'contracts'},
     'apps.land_plots.tasks.*': {'queue': 'land_plots'},
-    #'apps.integrations.tasks.*': {'queue': 'integrations'},
-    #'apps.notifications.tasks.*': {'queue': 'notifications'},
-    #'apps.core.tasks.*': {'queue': 'core'},
 }
 
 # Configure task priorities
