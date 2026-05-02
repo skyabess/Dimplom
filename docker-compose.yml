@@ -80,7 +80,9 @@ services:
     networks:
       - land_contract_network
     command: >
-      sh -c "python manage.py migrate --run-syncdb &&
+      sh -c "python manage.py migrate contenttypes &&
+             python manage.py migrate auth &&
+             python manage.py migrate --run-syncdb &&
              python manage.py collectstatic --noinput &&
              gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 core.wsgi:application"
 
