@@ -5,11 +5,16 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Устанавливаем системные зависимости
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    binutils \
     gcc \
-    postgresql-client \
-    libpq-dev \
-    libssl-dev \
+    gdal-bin \
+    libgdal-dev \
     libffi-dev \
+    libgeos-dev \
+    libpq-dev \
+    libproj-dev \
+    libssl-dev \
+    postgresql-client \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean

@@ -83,7 +83,20 @@ services:
              python manage.py collectstatic --noinput &&
              gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 core.wsgi:application"
 
-  # Nginx reverse proxy (исправлен - обслуживает frontend + backend)
+  # React frontend application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: land_contract_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - land_contract_network
+
+  # Nginx reverse proxy
   nginx:
     image: nginx:alpine
     container_name: land_contract_nginx
@@ -91,12 +104,12 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
       - static_files:/var/www/static
       - media_files:/var/www/media
     depends_on:
       - backend
+      - frontend
     networks:
       - land_contract_network
 
