@@ -32,11 +32,11 @@ services:
       - redis_data:/data
     networks:
       - land_contract_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    #healthcheck:
+     # test: ["CMD", "redis-cli", "ping"]
+      #interval: 10s
+     # timeout: 5s
+     # retries: 5
 
   # Django backend application
   backend:
