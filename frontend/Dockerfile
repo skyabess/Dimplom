@@ -1,28 +1,20 @@
 # Build stage
-FROM node:18-alpine as build
+FROM node:18-alpine AS build
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
-# Используем npm install вместо npm ci (нет package-lock.json)
-RUN npm install
+COPY index.html tsconfig.json tsconfig.node.json vite.config.ts ./
+COPY src ./src
 
-# Copy source code
-COPY . .
-
-# Build the application
 RUN npm run build
 
-# Production stage  
+# Runtime stage
 FROM nginx:alpine
 
-# Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Создаем папку и копируем dist (ТЕПЕРЬ РАБОТАЕТ!)
-RUN mkdir -p /usr/share/nginx/html
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
