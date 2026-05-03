@@ -1,14 +1,348 @@
-.App {
-  text-align: center;
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  background: #eef2f7;
+  color: #172033;
 }
 
-.App-header {
-  background-color: #282c34;
-  padding: 20px;
-  color: white;
-  margin-bottom: 20px;
+.sidebar {
+  background: #172033;
+  color: #f8fafc;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 }
 
-main {
-  padding: 20px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: #2f7d68;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand span,
+.sidebar-note span,
+.panel-header p,
+.metric-card small,
+.contract-row span {
+  color: #718096;
+}
+
+.sidebar .brand span,
+.sidebar-note span {
+  color: #aeb8c7;
+}
+
+.nav-list {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-item,
+button {
+  font: inherit;
+}
+
+.nav-item {
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #d8dee9;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  color: #ffffff;
+  background: #243149;
+}
+
+.sidebar-note {
+  margin-top: auto;
+  padding: 16px;
+  border: 1px solid #33415c;
+  border-radius: 8px;
+}
+
+.sidebar-note strong {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.workspace {
+  padding: 28px;
+  min-width: 0;
+}
+
+.topbar,
+.panel-header,
+.contract-row,
+.topbar-actions {
+  display: flex;
+  align-items: center;
+}
+
+.topbar {
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin-bottom: 5px;
+  color: #58657a;
+  font-size: 14px;
+}
+
+h1 {
+  font-size: 32px;
+  line-height: 1.15;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+.topbar-actions {
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.primary-button,
+.secondary-button,
+.icon-button,
+.text-button,
+.row-action,
+.quick-actions button {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.primary-button {
+  padding: 0 18px;
+  color: #ffffff;
+  background: #2f7d68;
+  font-weight: 700;
+}
+
+.secondary-button,
+.quick-actions button {
+  padding: 0 16px;
+  color: #1f2a3d;
+  background: #dfe7f0;
+}
+
+.icon-button {
+  width: 40px;
+  background: #ffffff;
+  color: #1f2a3d;
+  font-size: 22px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.metric-card,
+.panel {
+  background: #ffffff;
+  border: 1px solid #d9e1ec;
+  border-radius: 8px;
+}
+
+.metric-card {
+  padding: 18px;
+}
+
+.metric-card span,
+.metric-card small {
+  display: block;
+}
+
+.metric-card strong {
+  display: block;
+  margin: 8px 0;
+  font-size: 26px;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
+  gap: 18px;
+}
+
+.panel {
+  min-width: 0;
+  padding: 18px;
+}
+
+.panel-header {
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.panel-header.compact {
+  margin-bottom: 14px;
+}
+
+.text-button {
+  color: #2f7d68;
+  background: transparent;
+  font-weight: 700;
+}
+
+.contracts-list,
+.quick-actions,
+.task-list {
+  display: grid;
+  gap: 10px;
+}
+
+.contract-row {
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: minmax(210px, 1.4fr) minmax(160px, 0.9fr) 132px 88px;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+}
+
+.contract-row strong,
+.contract-row span {
+  display: block;
+}
+
+.contract-meta {
+  align-self: center;
+}
+
+.status-pill {
+  align-self: center;
+  justify-self: start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.status-pill.warning {
+  color: #7a4a00;
+  background: #fff0c2;
+}
+
+.status-pill.success {
+  color: #17694f;
+  background: #d9f5ea;
+}
+
+.status-pill.info {
+  color: #245b8f;
+  background: #dcecff;
+}
+
+.row-action {
+  align-self: center;
+  background: #172033;
+  color: #ffffff;
+}
+
+.quick-actions button {
+  text-align: left;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e3e9f2;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.data-table th {
+  color: #58657a;
+  font-size: 13px;
+}
+
+.task-item {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+}
+
+.task-item input {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  .metrics-grid,
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace,
+  .sidebar {
+    padding: 18px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .contract-row {
+    grid-template-columns: 1fr;
+  }
+
+  .data-table {
+    display: block;
+    overflow-x: auto;
+  }
 }
