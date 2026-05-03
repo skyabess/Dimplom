@@ -41,6 +41,13 @@ import {
 import { contractStatusMeta } from '../utils/status';
 
 const STORAGE_KEY = 'land-contracts.workspace.v2';
+const DEMO_SNAPSHOT = createDemoSnapshot();
+const DEMO_IDS = {
+  contracts: new Set(DEMO_SNAPSHOT.contracts.map((item) => item.id)),
+  landPlots: new Set(DEMO_SNAPSHOT.landPlots.map((item) => item.id)),
+  tasks: new Set(DEMO_SNAPSHOT.tasks.map((item) => item.id)),
+  documents: new Set(DEMO_SNAPSHOT.documents.map((item) => item.id)),
+};
 
 const todayIsoDate = () => new Date().toISOString().slice(0, 10);
 
@@ -68,6 +75,39 @@ const persistSnapshot = (snapshot: WorkspaceSnapshot) => {
     }),
   );
 };
+
+const mergeApiItems = <T extends { id: string }>(
+  currentItems: T[],
+  apiItems: T[] | undefined,
+  demoIds: Set<string>,
+) => {
+  if (apiItems === undefined || apiItems.length === 0) {
+    return currentItems;
+  }
+
+  const apiIds = new Set(apiItems.map((item) => item.id));
+  const localOnlyItems = currentItems.filter(
+    (item) => !apiIds.has(item.id) && !demoIds.has(item.id),
+  );
+
+  return [...apiItems, ...localOnlyItems];
+};
+
+const attachDocumentIds = (contracts: Contract[], documents: DocumentItem[]) => (
+  contracts.map((contract) => {
+    const documentIds = new Set(contract.document_ids);
+    documents.forEach((document) => {
+      if (document.contractId === contract.id) {
+        documentIds.add(document.id);
+      }
+    });
+
+    return {
+      ...contract,
+      document_ids: Array.from(documentIds),
+    };
+  })
+);
 
 const buildContractNumber = (contracts: Contract[]) => {
   const year = new Date().getFullYear();
@@ -158,19 +198,35 @@ export const useWorkspaceData = () => {
       Boolean(apiSnapshot.documents?.length);
 
     if (hasApiSnapshot) {
-      setSnapshot((current) => ({
-        ...current,
-        contracts: apiSnapshot.contracts ?? current.contracts,
-        landPlots: apiSnapshot.landPlots ?? current.landPlots,
-        tasks: apiSnapshot.tasks ?? current.tasks,
-        documents: apiSnapshot.documents ?? current.documents,
-        updatedAt: apiSnapshot.updatedAt || new Date().toISOString(),
-      }));
+      setSnapshot((current) => {
+        const documents = mergeApiItems(
+          current.documents,
+          apiSnapshot.documents,
+          DEMO_IDS.documents,
+        );
+        const contracts = attachDocumentIds(
+          mergeApiItems(current.contracts, apiSnapshot.contracts, DEMO_IDS.contracts),
+          documents,
+        );
+
+        return {
+          ...current,
+          contracts,
+          landPlots: mergeApiItems(
+            current.landPlots,
+            apiSnapshot.landPlots,
+            DEMO_IDS.landPlots,
+          ),
+          tasks: mergeApiItems(current.tasks, apiSnapshot.tasks, DEMO_IDS.tasks),
+          documents,
+          updatedAt: apiSnapshot.updatedAt || new Date().toISOString(),
+        };
+      });
       setApiState({
         status: 'connected',
         message: hasServerRows
-          ? 'Данные загружены из API'
-          : 'API доступен, серверных данных пока нет.',
+          ? 'Данные загружены из API, локальные изменения сохранены.'
+          : 'API доступен, серверных данных пока нет. Локальные данные сохранены.',
       });
     } else {
       setApiState({
