@@ -28,22 +28,8 @@ from apps.contracts.services import ContractService
 from apps.contracts.permissions import CanSignContract, CanViewContract
 
 
-ADMIN_ROLES = {'system_admin', 'company_admin'}
-CONTRACT_MANAGER_ROLES = {'system_admin', 'company_admin', 'lawyer', 'realtor', 'notary'}
-
-
-def get_active_roles(user):
-    if not user or not user.is_authenticated or not hasattr(user, 'roles'):
-        return set()
-
-    return set(user.roles.filter(is_active=True).values_list('role', flat=True))
-
-
-def has_any_role(user, roles):
-    if user.is_staff or user.is_superuser:
-        return True
-
-    return bool(get_active_roles(user).intersection(roles))
+def user_has_role(user, *roles):
+    return user.roles.filter(role__in=roles, is_active=True).exists()
 
 
 class ContractViewSet(viewsets.ModelViewSet):
@@ -68,10 +54,20 @@ class ContractViewSet(viewsets.ModelViewSet):
             'documents', 'signatures', 'stages'
         )
         
-        if has_any_role(user, CONTRACT_MANAGER_ROLES):
+        if user.is_staff or user.is_superuser or user_has_role(user, 'system_admin', 'company_admin'):
             return queryset
 
-        return queryset.filter(Q(seller=user) | Q(buyer=user))
+        if user_has_role(user, 'notary') and hasattr(user, 'region'):
+            return queryset.filter(land_plot__region=user.region)
+
+        if user_has_role(user, 'realtor', 'lawyer', 'client'):
+            queryset = queryset.filter(
+                Q(seller=user) | Q(buyer=user)
+            )
+        else:
+            queryset = queryset.filter(Q(seller=user) | Q(buyer=user))
+        
+        return queryset
     
     def get_serializer_class(self):
         """
@@ -370,7 +366,7 @@ class ContractSignatureViewSet(viewsets.ModelViewSet):
             return True
         
         # Notary can sign
-        if has_any_role(user, {'notary'}) and contract.status in ['signed', 'active']:
+        if user_has_role(user, 'notary') and contract.status in ['signed', 'active']:
             return True
         
         return False
@@ -437,7 +433,7 @@ class ContractTemplateViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         
-        if has_any_role(user, ADMIN_ROLES):
+        if user.is_staff or user.is_superuser or user_has_role(user, 'system_admin', 'company_admin'):
             return ContractTemplate.objects.all()
         else:
             return ContractTemplate.objects.filter(
@@ -492,7 +488,7 @@ class ContractCommentViewSet(viewsets.ModelViewSet):
             ).select_related('author', 'parent')
             
             # Filter internal comments for non-admin users
-            if not has_any_role(user, ADMIN_ROLES):
+            if not (user.is_staff or user.is_superuser or user_has_role(user, 'system_admin', 'company_admin')):
                 queryset = queryset.filter(is_internal=False)
             
             return queryset
@@ -509,57 +505,3 @@ class ContractCommentViewSet(viewsets.ModelViewSet):
             contract_id=contract_id,
             author=user
         )
-
-
-class ContractTaskViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for operational tasks shown in the frontend workspace.
-    """
-    serializer_class = ContractTaskSerializer
-    permission_classes = [IsAuthenticated]
-    pagination_class = StandardResultsSetPagination
-
-    def get_queryset(self):
-        user = self.request.user
-        queryset = ContractTask.objects.select_related(
-            'contract',
-            'created_by',
-            'contract__seller',
-            'contract__buyer',
-        )
-        contract_id = self.request.query_params.get('contract_id')
-
-        if contract_id:
-            queryset = queryset.filter(contract_id=contract_id)
-
-        if has_any_role(user, CONTRACT_MANAGER_ROLES):
-            return queryset
-
-        return queryset.filter(
-            Q(created_by=user) |
-            Q(contract__seller=user) |
-            Q(contract__buyer=user)
-        )
-
-    def _validate_contract_access(self, user, contract):
-        if not contract or has_any_role(user, CONTRACT_MANAGER_ROLES):
-            return
-
-        if contract.seller_id == user.id or contract.buyer_id == user.id:
-            return
-
-        raise PermissionDenied('You do not have permission to link a task to this contract.')
-
-    def perform_create(self, serializer):
-        self._validate_contract_access(
-            self.request.user,
-            serializer.validated_data.get('contract'),
-        )
-        serializer.save(created_by=self.request.user)
-
-    def perform_update(self, serializer):
-        self._validate_contract_access(
-            self.request.user,
-            serializer.validated_data.get('contract', serializer.instance.contract),
-        )
-        serializer.save()
