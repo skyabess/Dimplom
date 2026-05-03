@@ -145,46 +145,34 @@ LOGGING = {
             'style': '{',
         },
         'json': {
-            'format': '{"level": "{levelname}", "time": "{asctime}", "module": "{module}", "process": {process:d}, "thread": {thread:d}, "message": "{message}"}',
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': '/var/log/land-contracts/django.log',
-            'maxBytes': 1024 * 1024 * 100,  # 100MB
-            'backupCount': 5,
-            'formatter': 'json',
-        },
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'sentry': {
-            'level': 'ERROR',
-            'class': 'sentry_sdk.integrations.django.SentryHandler',
+            'formatter': 'json',
         },
     },
     'root': {
-        'handlers': ['file', 'sentry'],
+        'handlers': ['console'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'sentry'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'apps': {
-            'handlers': ['file', 'sentry'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'celery': {
-            'handlers': ['file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
