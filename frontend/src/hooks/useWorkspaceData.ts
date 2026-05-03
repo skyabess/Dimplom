@@ -81,8 +81,12 @@ const mergeApiItems = <T extends { id: string }>(
   apiItems: T[] | undefined,
   demoIds: Set<string>,
 ) => {
-  if (apiItems === undefined || apiItems.length === 0) {
+  if (apiItems === undefined) {
     return currentItems;
+  }
+
+  if (apiItems.length === 0) {
+    return currentItems.filter((item) => !demoIds.has(item.id));
   }
 
   const apiIds = new Set(apiItems.map((item) => item.id));
