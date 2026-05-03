@@ -6,7 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.gis.geos import GEOSGeometry, Point
 from django.contrib.gis.measure import Distance
 from django.contrib.gis.db.models.functions import Distance as GISDistance
-from django.db import transaction
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi

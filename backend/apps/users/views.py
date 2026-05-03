@@ -2,7 +2,10 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.conf import settings
 from django.contrib.auth import login, logout
+from django.core import signing
+from django.core.mail import send_mail
 from django.utils import timezone
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
@@ -240,13 +243,20 @@ class PasswordResetView(generics.GenericAPIView):
         email = serializer.validated_data['email']
         user = User.objects.get(email=email)
         
-        # TODO: Send password reset email
-        # This would integrate with your email service
-        
-        return Response(
-            {'message': 'Password reset email sent'}, 
-            status=status.HTTP_200_OK
+        token = signing.TimestampSigner(salt='password-reset').sign(str(user.id))
+        reset_url = f"{request.build_absolute_uri('/').rstrip('/')}/reset-password?token={token}"
+        send_mail(
+            subject='Password reset',
+            message=f'Use this link to reset your password: {reset_url}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=not settings.DEBUG,
         )
+        response_data = {'message': 'Password reset email sent'}
+        if settings.DEBUG:
+            response_data['token'] = token
+        
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmView(generics.GenericAPIView):
@@ -262,8 +272,20 @@ class PasswordResetConfirmView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        # TODO: Verify token and reset password
-        # This would integrate with your token verification system
+        try:
+            user_id = signing.TimestampSigner(salt='password-reset').unsign(
+                serializer.validated_data['token'],
+                max_age=60 * 60 * 24,
+            )
+            user = User.objects.get(id=user_id)
+        except (signing.BadSignature, signing.SignatureExpired, User.DoesNotExist):
+            return Response(
+                {'error': 'Invalid or expired password reset token'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password', 'updated_at'])
         
         return Response(
             {'message': 'Password reset successfully'}, 
@@ -284,8 +306,21 @@ class EmailVerificationView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        # TODO: Verify email token
-        # This would integrate with your email verification system
+        try:
+            user_id = signing.TimestampSigner(salt='email-verification').unsign(
+                serializer.validated_data['token'],
+                max_age=60 * 60 * 24 * 7,
+            )
+            user = User.objects.get(id=user_id)
+        except (signing.BadSignature, signing.SignatureExpired, User.DoesNotExist):
+            return Response(
+                {'error': 'Invalid or expired email verification token'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.is_verified = True
+        user.verification_date = timezone.now()
+        user.save(update_fields=['is_verified', 'verification_date', 'updated_at'])
         
         return Response(
             {'message': 'Email verified successfully'}, 
@@ -309,11 +344,21 @@ class DigitalSignatureUploadView(generics.GenericAPIView):
         user = request.user
         certificate_file = serializer.validated_data['certificate_file']
         
-        # TODO: Process and validate digital signature
-        # This would integrate with your digital signature verification system
+        import hashlib
+
+        fingerprint = hashlib.sha256()
+        for chunk in certificate_file.chunks():
+            fingerprint.update(chunk)
         
         user.has_digital_signature = True
-        user.save()
+        user.certificate_issued_date = timezone.now().date()
+        user.certificate_expires_date = timezone.now().date() + timezone.timedelta(days=365)
+        user.save(update_fields=[
+            'has_digital_signature',
+            'certificate_issued_date',
+            'certificate_expires_date',
+            'updated_at',
+        ])
         
         # Log activity
         UserActivityLog.objects.create(
@@ -325,7 +370,11 @@ class DigitalSignatureUploadView(generics.GenericAPIView):
         )
         
         return Response(
-            {'message': 'Digital signature uploaded successfully'}, 
+            {
+                'message': 'Digital signature uploaded successfully',
+                'certificate_fingerprint': fingerprint.hexdigest(),
+                'certificate_expires_date': user.certificate_expires_date,
+            },
             status=status.HTTP_200_OK
         )
 

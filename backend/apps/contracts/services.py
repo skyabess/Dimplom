@@ -1,6 +1,12 @@
+from django.core.files.base import ContentFile
 from django.utils import timezone
 
-from apps.contracts.models import Contract, ContractSignature
+from apps.contracts.models import (
+    Contract,
+    ContractDocument,
+    ContractSignature,
+    ContractTemplate,
+)
 
 
 class ContractService:
@@ -37,10 +43,67 @@ class ContractService:
         )
 
     def get_contract_history(self, contract):
-        return []
+        events = [
+            {
+                'type': 'created',
+                'title': 'Contract created',
+                'timestamp': contract.created_at,
+                'actor': None,
+            }
+        ]
+
+        for stage in contract.stages.all().order_by('order'):
+            events.append({
+                'type': 'stage_completed' if stage.is_completed else 'stage_pending',
+                'title': stage.name,
+                'timestamp': stage.completed_at or stage.created_at,
+                'actor': None,
+            })
+
+        for document in contract.documents.all().order_by('created_at'):
+            events.append({
+                'type': 'document_uploaded',
+                'title': document.title,
+                'timestamp': document.created_at,
+                'actor': None,
+            })
+
+        for signature in contract.signatures.select_related('signer').all().order_by('created_at'):
+            events.append({
+                'type': 'signature_created',
+                'title': signature.get_signature_type_display(),
+                'timestamp': signature.created_at,
+                'actor': signature.signer.full_name,
+            })
+
+        return sorted(events, key=lambda event: event['timestamp'])
 
     def generate_document(self, contract, template_id, user):
-        raise NotImplementedError('Генерация документов пока не реализована')
+        template = None
+        if template_id:
+            template = ContractTemplate.objects.get(id=template_id, is_active=True)
+
+        if template:
+            content = self.preview_template(template, self._contract_template_data(contract))
+            title = f'{template.name} - {contract.title}'
+        else:
+            content = self._default_document_content(contract)
+            title = f'Document for {contract.title}'
+
+        encoded = content.encode('utf-8')
+        file_name = f'contract-{contract.id}-{timezone.now().strftime("%Y%m%d%H%M%S")}.html'
+
+        document = ContractDocument(
+            contract=contract,
+            title=title,
+            document_type='draft',
+            file_size=len(encoded),
+            mime_type='text/html',
+            is_required=False,
+            is_signed=False,
+        )
+        document.file.save(file_name, ContentFile(encoded), save=True)
+        return document
 
     def complete_stage(self, stage, user):
         stage.is_completed = True
@@ -54,3 +117,43 @@ class ContractService:
             content = content.replace('{{ ' + key + ' }}', str(value))
             content = content.replace('{{' + key + '}}', str(value))
         return content
+
+    def _contract_template_data(self, contract):
+        return {
+            'contract_title': contract.title,
+            'contract_description': contract.description,
+            'seller_name': contract.seller.full_name,
+            'buyer_name': contract.buyer.full_name,
+            'cadastral_number': contract.land_plot.cadastral_number,
+            'price': contract.price,
+            'currency': contract.currency,
+            'total_amount': contract.total_amount,
+            'start_date': contract.start_date,
+            'end_date': contract.end_date,
+            'payment_terms': contract.payment_terms,
+            'special_conditions': contract.special_conditions,
+        }
+
+    def _default_document_content(self, contract):
+        data = self._contract_template_data(contract)
+        return f"""
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>{data['contract_title']}</title></head>
+<body>
+  <h1>{data['contract_title']}</h1>
+  <p>{data['contract_description']}</p>
+  <dl>
+    <dt>Seller</dt><dd>{data['seller_name']}</dd>
+    <dt>Buyer</dt><dd>{data['buyer_name']}</dd>
+    <dt>Land plot</dt><dd>{data['cadastral_number']}</dd>
+    <dt>Total amount</dt><dd>{data['total_amount']} {data['currency']}</dd>
+    <dt>Period</dt><dd>{data['start_date']} - {data['end_date']}</dd>
+  </dl>
+  <h2>Payment terms</h2>
+  <p>{data['payment_terms'] or '-'}</p>
+  <h2>Special conditions</h2>
+  <p>{data['special_conditions'] or '-'}</p>
+</body>
+</html>
+"""

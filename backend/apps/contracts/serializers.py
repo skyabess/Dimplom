@@ -12,6 +12,13 @@ from apps.contracts.models import (
 
 class ContractSerializer(serializers.ModelSerializer):
     total_amount = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    seller_name = serializers.CharField(source='seller.full_name', read_only=True)
+    buyer_name = serializers.CharField(source='buyer.full_name', read_only=True)
+    land_plot_cadastral_number = serializers.CharField(
+        source='land_plot.cadastral_number',
+        read_only=True
+    )
+    documents_count = serializers.IntegerField(source='documents.count', read_only=True)
 
     class Meta:
         model = Contract
@@ -20,11 +27,38 @@ class ContractSerializer(serializers.ModelSerializer):
 
 
 class ContractDetailSerializer(ContractSerializer):
-    pass
+    documents = serializers.SerializerMethodField()
+    stages = serializers.SerializerMethodField()
+    signatures = serializers.SerializerMethodField()
+    comments = serializers.SerializerMethodField()
+
+    def get_documents(self, obj):
+        return ContractDocumentSerializer(obj.documents.all(), many=True).data
+
+    def get_stages(self, obj):
+        return ContractStageSerializer(obj.stages.all(), many=True).data
+
+    def get_signatures(self, obj):
+        return ContractSignatureSerializer(obj.signatures.all(), many=True).data
+
+    def get_comments(self, obj):
+        return ContractCommentSerializer(obj.comments.all(), many=True).data
 
 
 class ContractCreateSerializer(ContractSerializer):
-    pass
+    def validate(self, attrs):
+        seller = attrs.get('seller')
+        buyer = attrs.get('buyer')
+        start_date = attrs.get('start_date')
+        end_date = attrs.get('end_date')
+
+        if seller and buyer and seller == buyer:
+            raise serializers.ValidationError('Seller and buyer must be different users.')
+
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError('End date must be later than start date.')
+
+        return attrs
 
 
 class ContractDocumentSerializer(serializers.ModelSerializer):

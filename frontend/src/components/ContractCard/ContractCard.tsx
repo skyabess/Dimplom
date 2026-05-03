@@ -1,230 +1,132 @@
-import React, { memo, useCallback, useMemo } from 'react';
-import {
-  Card,
-  CardContent,
-  CardActions,
-  Typography,
-  Box,
-  Chip,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
-import {
-  Edit as EditIcon,
-  Visibility as ViewIcon,
-  Delete as DeleteIcon,
-  Signatures as SignIcon,
-  Description as DocumentIcon,
-} from '@mui/icons-material';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
-
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DeleteIcon from '@mui/icons-material/Delete';
+import DescriptionIcon from '@mui/icons-material/Description';
+import EditIcon from '@mui/icons-material/Edit';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import { memo } from 'react';
 import { Contract } from '../../types/contract';
-import { useAppDispatch } from '../../hooks/redux';
-import { showNotification } from '../../store/slices/uiSlice';
+import { formatArea, formatDate } from '../../utils/formatters';
 import PriceDisplay from '../PriceDisplay/PriceDisplay';
 import StatusBadge from '../StatusBadge/StatusBadge';
 
 interface ContractCardProps {
   contract: Contract;
+  compact?: boolean;
   onView: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onSign: (id: string) => void;
   onDocumentView: (id: string) => void;
-  actions?: ('view' | 'edit' | 'delete' | 'sign' | 'document')[];
-  compact?: boolean;
 }
 
-const ContractCard: React.FC<ContractCardProps> = ({
+const ContractCard = ({
   contract,
+  compact = false,
   onView,
   onEdit,
   onDelete,
   onSign,
   onDocumentView,
-  actions = ['view', 'edit', 'delete', 'sign', 'document'],
-  compact = false,
-}) => {
-  const dispatch = useAppDispatch();
-
-  // Memoized handlers to prevent unnecessary re-renders
-  const handleView = useCallback(() => {
-    onView(contract.id);
-  }, [contract.id, onView]);
-
-  const handleEdit = useCallback(() => {
-    onEdit(contract.id);
-  }, [contract.id, onEdit]);
-
-  const handleDelete = useCallback(() => {
-    dispatch(showNotification({
-      type: 'warning',
-      message: 'Вы уверены, что хотите удалить договор?',
-      action: {
-        label: 'Удалить',
-        callback: () => onDelete(contract.id),
-      },
-    }));
-  }, [contract.id, onDelete, dispatch]);
-
-  const handleSign = useCallback(() => {
-    onSign(contract.id);
-  }, [contract.id, onSign]);
-
-  const handleDocumentView = useCallback(() => {
-    onDocumentView(contract.id);
-  }, [contract.id, onDocumentView]);
-
-  // Memoized formatted values
-  const formattedPrice = useMemo(() => {
-    return {
-      amount: contract.price,
-      currency: contract.currency,
-    };
-  }, [contract.price, contract.currency]);
-
-  const formattedDate = useMemo(() => {
-    return format(new Date(contract.created_at), 'dd MMMM yyyy', { locale: ru });
-  }, [contract.created_at]);
-
-  const canSign = useMemo(() => {
-    return contract.status === 'pending_signature';
-  }, [contract.status]);
-
-  const canEdit = useMemo(() => {
-    return contract.status === 'draft';
-  }, [contract.status]);
-
-  const canDelete = useMemo(() => {
-    return ['draft', 'cancelled'].includes(contract.status);
-  }, [contract.status]);
+}: ContractCardProps) => {
+  const canSign = contract.status === 'pending_signature';
+  const canEdit = ['draft', 'pending_approval'].includes(contract.status);
+  const canDelete = ['draft', 'cancelled'].includes(contract.status);
 
   return (
-    <Card
-      sx={{
-        height: compact ? 'auto' : '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'all 0.3s ease',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: 4,
-        },
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-        {/* Header with title and status */}
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-          <Typography variant="h6" component="h2" noWrap>
-            {contract.title}
-          </Typography>
-          <StatusBadge status={contract.status} />
-        </Box>
+    <article className={`contract-card ${compact ? 'compact' : ''}`}>
+      <header className="contract-card-header">
+        <div>
+          <span className="contract-number">{contract.number}</span>
+          <h3>{contract.title}</h3>
+        </div>
+        <StatusBadge status={contract.status} />
+      </header>
 
-        {/* Contract details */}
-        {!compact && (
-          <Box mb={2}>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              {contract.description}
-            </Typography>
-          </Box>
-        )}
+      {!compact && <p className="contract-description">{contract.description}</p>}
 
-        {/* Land plot information */}
-        <Box mb={2}>
-          <Typography variant="body2" color="text.secondary">
-            Кадастровый номер: {contract.land_plot?.cadastral_number || 'Не указан'}
-          </Typography>
-          {contract.land_plot?.area && (
-            <Typography variant="body2" color="text.secondary">
-              Площадь: {contract.land_plot.area} га
-            </Typography>
-          )}
-          {contract.land_plot?.address && (
-            <Typography variant="body2" color="text.secondary">
-              Адрес: {contract.land_plot.address}
-            </Typography>
-          )}
-        </Box>
+      <dl className="contract-facts">
+        <div>
+          <dt>Участок</dt>
+          <dd>{contract.land_plot.cadastral_number}</dd>
+        </div>
+        <div>
+          <dt>Площадь</dt>
+          <dd>{formatArea(contract.land_plot.area)}</dd>
+        </div>
+        <div>
+          <dt>Покупатель</dt>
+          <dd>{contract.buyer.full_name}</dd>
+        </div>
+        <div>
+          <dt>Срок</dt>
+          <dd>{formatDate(contract.end_date)}</dd>
+        </div>
+      </dl>
 
-        {/* Parties information */}
-        <Box mb={2}>
-          <Typography variant="body2" color="text.secondary">
-            Продавец: {contract.seller?.full_name || 'Не указан'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Покупатель: {contract.buyer?.full_name || 'Не указан'}
-          </Typography>
-        </Box>
+      <div className="progress-line" aria-label={`Готовность ${contract.progress}%`}>
+        <span style={{ width: `${contract.progress}%` }} />
+      </div>
 
-        {/* Financial information */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <PriceDisplay price={formattedPrice} size={compact ? 'small' : 'medium'} />
-          <Typography variant="caption" color="text.secondary">
-            {formattedDate}
-          </Typography>
-        </Box>
+      <footer className="contract-card-footer">
+        <PriceDisplay
+          additionalFees={contract.additional_fees}
+          amount={contract.price}
+          currency={contract.currency}
+          size={compact ? 'small' : 'medium'}
+        />
 
-        {/* Tags and additional info */}
-        {contract.tags && contract.tags.length > 0 && (
-          <Box mb={2}>
-            {contract.tags.map((tag, index) => (
-              <Chip
-                key={index}
-                label={tag}
-                size="small"
-                variant="outlined"
-                sx={{ mr: 0.5, mb: 0.5 }}
-              />
-            ))}
-          </Box>
-        )}
-      </CardContent>
-
-      {/* Actions */}
-      <CardActions sx={{ justifyContent: 'flex', pt: 0 }}>
-        {actions.includes('view') && (
-          <Tooltip title="Просмотр">
-            <IconButton onClick={handleView} size="small">
-              <ViewIcon />
-            </IconButton>
-          </Tooltip>
-        )}
-
-        {actions.includes('document') && (
-          <Tooltip title="Документы">
-            <IconButton onClick={handleDocumentView} size="small">
-              <DocumentIcon />
-            </IconButton>
-          </Tooltip>
-        )}
-
-        {actions.includes('edit') && canEdit && (
-          <Tooltip title="Редактировать">
-            <IconButton onClick={handleEdit} size="small" color="primary">
-              <EditIcon />
-            </IconButton>
-          </Tooltip>
-        )}
-
-        {actions.includes('sign') && canSign && (
-          <Tooltip title="Подписать">
-            <IconButton onClick={handleSign} size="small" color="success">
-              <SignIcon />
-            </IconButton>
-          </Tooltip>
-        )}
-
-        {actions.includes('delete') && canDelete && (
-          <Tooltip title="Удалить">
-            <IconButton onClick={handleDelete} size="small" color="error">
-              <DeleteIcon />
-            </IconButton>
-          </Tooltip>
-        )}
-      </CardActions>
-    </Card>
+        <div className="row-actions">
+          <button
+            aria-label="Открыть договор"
+            className="icon-action"
+            onClick={() => onView(contract.id)}
+            title="Открыть"
+            type="button"
+          >
+            <VisibilityIcon fontSize="small" />
+          </button>
+          <button
+            aria-label="Документы договора"
+            className="icon-action"
+            onClick={() => onDocumentView(contract.id)}
+            title="Документы"
+            type="button"
+          >
+            <DescriptionIcon fontSize="small" />
+          </button>
+          <button
+            aria-label="Редактировать договор"
+            className="icon-action"
+            disabled={!canEdit}
+            onClick={() => onEdit(contract.id)}
+            title="Редактировать"
+            type="button"
+          >
+            <EditIcon fontSize="small" />
+          </button>
+          <button
+            aria-label="Подписать договор"
+            className="icon-action success"
+            disabled={!canSign}
+            onClick={() => onSign(contract.id)}
+            title="Подписать"
+            type="button"
+          >
+            <CheckCircleIcon fontSize="small" />
+          </button>
+          <button
+            aria-label="Удалить договор"
+            className="icon-action danger"
+            disabled={!canDelete}
+            onClick={() => onDelete(contract.id)}
+            title="Удалить"
+            type="button"
+          >
+            <DeleteIcon fontSize="small" />
+          </button>
+        </div>
+      </footer>
+    </article>
   );
 };
 

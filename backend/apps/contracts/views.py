@@ -4,6 +4,7 @@ Views for contracts app
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count, Avg, Sum
 from django.utils import timezone
@@ -94,8 +95,7 @@ class ContractViewSet(viewsets.ModelViewSet):
             user=user,
             validated_data=serializer.validated_data
         )
-        
-        return contract
+        serializer.instance = contract
     
     @extend_schema(
         summary="Подписать договор",
