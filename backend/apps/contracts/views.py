@@ -27,6 +27,10 @@ from apps.contracts.services import ContractService
 from apps.contracts.permissions import CanSignContract, CanViewContract
 
 
+def user_has_role(user, *roles):
+    return user.roles.filter(role__in=roles, is_active=True).exists()
+
+
 class ContractViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing contracts
@@ -49,26 +53,18 @@ class ContractViewSet(viewsets.ModelViewSet):
             'documents', 'signatures', 'stages'
         )
         
-        # Filter based on user role
-        if user.role == 'seller':
-            queryset = queryset.filter(seller=user)
-        elif user.role == 'buyer':
-            queryset = queryset.filter(buyer=user)
-        elif user.role == 'agent':
-            # Agents can see contracts they represent
+        if user.is_staff or user.is_superuser or user_has_role(user, 'system_admin', 'company_admin'):
+            return queryset
+
+        if user_has_role(user, 'notary') and hasattr(user, 'region'):
+            return queryset.filter(land_plot__region=user.region)
+
+        if user_has_role(user, 'realtor', 'lawyer', 'client'):
             queryset = queryset.filter(
                 Q(seller=user) | Q(buyer=user)
             )
-        elif user.role == 'notary':
-            # Notaries can see all contracts in their region
-            queryset = queryset.filter(
-                land_plot__region=user.region
-            )
-        elif user.role == 'admin':
-            # Admins can see all contracts
-            pass
         else:
-            queryset = queryset.none()
+            queryset = queryset.filter(Q(seller=user) | Q(buyer=user))
         
         return queryset
     
@@ -379,7 +375,7 @@ class ContractSignatureViewSet(viewsets.ModelViewSet):
             return True
         
         # Notary can sign
-        if user.role == 'notary' and contract.status in ['signed', 'active']:
+        if user_has_role(user, 'notary') and contract.status in ['signed', 'active']:
             return True
         
         return False
@@ -446,7 +442,7 @@ class ContractTemplateViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         
-        if user.role == 'admin':
+        if user.is_staff or user.is_superuser or user_has_role(user, 'system_admin', 'company_admin'):
             return ContractTemplate.objects.all()
         else:
             return ContractTemplate.objects.filter(
@@ -501,7 +497,7 @@ class ContractCommentViewSet(viewsets.ModelViewSet):
             ).select_related('author', 'parent')
             
             # Filter internal comments for non-admin users
-            if user.role != 'admin':
+            if not (user.is_staff or user.is_superuser or user_has_role(user, 'system_admin', 'company_admin')):
                 queryset = queryset.filter(is_internal=False)
             
             return queryset

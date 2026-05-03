@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import logging
+import uuid
 
 from .models import User, UserProfile, UserRole, UserSession, UserActivityLog
 from .serializers import (
@@ -88,7 +89,7 @@ class UserLoginView(generics.GenericAPIView):
         # Create user session
         session = UserSession.objects.create(
             user=user,
-            session_key=request.session.session_key or '',
+            session_key=request.session.session_key or uuid.uuid4().hex,
             ip_address=self.get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', ''),
             expires_at=timezone.now() + timezone.timedelta(days=30)
