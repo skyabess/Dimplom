@@ -462,3 +462,53 @@ class ContractComment(TimeStampedModel):
     
     def __str__(self):
         return f"{self.contract.title} - {self.author.get_full_name()}"
+
+
+class ContractTask(TimeStampedModel):
+    """Operational task linked to a contract workflow."""
+
+    PRIORITY_CHOICES = [
+        ('low', _('Low')),
+        ('medium', _('Medium')),
+        ('high', _('High')),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contract = models.ForeignKey(
+        Contract,
+        on_delete=models.SET_NULL,
+        related_name='tasks',
+        null=True,
+        blank=True,
+        verbose_name=_('Contract'),
+    )
+    title = models.CharField(_('Title'), max_length=255)
+    due_date = models.DateField(_('Due Date'))
+    assignee = models.CharField(_('Assignee'), max_length=255, blank=True)
+    priority = models.CharField(
+        _('Priority'),
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default='medium',
+    )
+    is_completed = models.BooleanField(_('Is Completed'), default=False)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='created_contract_tasks',
+        null=True,
+        blank=True,
+        verbose_name=_('Created By'),
+    )
+
+    class Meta:
+        verbose_name = _('Contract Task')
+        verbose_name_plural = _('Contract Tasks')
+        ordering = ['is_completed', 'due_date', '-created_at']
+        indexes = [
+            models.Index(fields=['is_completed', 'due_date']),
+            models.Index(fields=['contract', 'is_completed']),
+        ]
+
+    def __str__(self):
+        return self.title

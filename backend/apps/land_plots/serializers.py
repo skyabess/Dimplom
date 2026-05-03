@@ -1,10 +1,63 @@
+import hashlib
+import json
+
 from rest_framework import serializers
-from django.contrib.gis.geos import Polygon, Point
+from django.contrib.gis.geos import GEOSGeometry, Polygon, Point
 from django.contrib.gis.measure import Distance
 from .models import (
     LandCategory, LandPurpose, Region, District, Settlement, LandPlot,
     LandPlotOwner, LandPlotDocument, LandPlotEncumbrance, LandPlotValuation
 )
+
+
+def short_code(prefix, value, length=10):
+    digest = hashlib.sha1((value or prefix).lower().encode('utf-8')).hexdigest()
+    return f"{prefix}{digest}"[:length]
+
+
+def get_or_create_region(name):
+    normalized_name = (name or '').strip() or 'Регион не указан'
+    return Region.objects.get_or_create(
+        name=normalized_name,
+        defaults={
+            'code': short_code('R', normalized_name),
+            'okato_code': short_code('OK', normalized_name, 15),
+        },
+    )[0]
+
+
+def get_or_create_district(region, name):
+    normalized_name = (name or '').strip() or f'{region.name} район'
+    return District.objects.get_or_create(
+        region=region,
+        code=short_code('D', f'{region.id}:{normalized_name}'),
+        defaults={'name': normalized_name},
+    )[0]
+
+
+def get_or_create_settlement(district, name):
+    normalized_name = (name or '').strip() or 'Не указано'
+    return Settlement.objects.get_or_create(
+        district=district,
+        name=normalized_name,
+        defaults={'type': 'населенный пункт'},
+    )[0]
+
+
+def get_or_create_category(name):
+    normalized_name = (name or '').strip() or 'Земли населенных пунктов'
+    return LandCategory.objects.get_or_create(
+        name=normalized_name,
+        defaults={'code': short_code('C', normalized_name)},
+    )[0]
+
+
+def get_or_create_purpose(name):
+    normalized_name = (name or '').strip() or 'Не указано'
+    return LandPurpose.objects.get_or_create(
+        name=normalized_name,
+        defaults={'code': short_code('P', normalized_name)},
+    )[0]
 
 
 class LandCategorySerializer(serializers.ModelSerializer):
@@ -212,23 +265,76 @@ class LandPlotSerializer(serializers.ModelSerializer):
 class LandPlotCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating land plots."""
     geometry_geojson = serializers.JSONField(write_only=True, required=False)
+    region_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    district_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    settlement_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    category_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    purpose_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     class Meta:
         model = LandPlot
         fields = [
             'cadastral_number', 'region', 'district', 'settlement', 'address',
             'area', 'category', 'purpose', 'geometry_geojson', 'ownership_type',
-            'notes'
+            'notes', 'is_verified', 'region_name', 'district_name',
+            'settlement_name', 'category_name', 'purpose_name'
         ]
+        extra_kwargs = {
+            'region': {'required': False},
+            'district': {'required': False},
+            'settlement': {'required': False},
+            'category': {'required': False},
+            'purpose': {'required': False},
+        }
     
     def create(self, validated_data):
         """Create land plot with geometry from GeoJSON."""
         geometry_geojson = validated_data.pop('geometry_geojson', None)
+        region_name = validated_data.pop('region_name', '')
+        district_name = validated_data.pop('district_name', '')
+        settlement_name = validated_data.pop('settlement_name', '')
+        category_name = validated_data.pop('category_name', '')
+        purpose_name = validated_data.pop('purpose_name', '')
         
         if geometry_geojson:
-            from django.contrib.gis.geos import GEOSGeometry
-            geometry = GEOSGeometry(str(geometry_geojson))
-            validated_data['geometry'] = geometry
+            validated_data['geometry'] = GEOSGeometry(json.dumps(geometry_geojson))
+
+        if not validated_data.get('geometry'):
+            validated_data['geometry'] = Polygon((
+                (37.6000, 55.7000),
+                (37.6010, 55.7000),
+                (37.6010, 55.7010),
+                (37.6000, 55.7010),
+                (37.6000, 55.7000),
+            ))
+
+        if not validated_data.get('region'):
+            region = get_or_create_region(region_name)
+            validated_data['region'] = region
+
+        if not validated_data.get('district'):
+            district = get_or_create_district(
+                validated_data['region'],
+                district_name or f"{validated_data['region'].name} район",
+            )
+            validated_data['district'] = district
+
+        if not validated_data.get('settlement'):
+            settlement = get_or_create_settlement(
+                validated_data['district'],
+                settlement_name or 'Не указано',
+            )
+            validated_data['settlement'] = settlement
+
+        if not validated_data.get('category'):
+            validated_data['category'] = get_or_create_category(
+                category_name or 'Земли населенных пунктов'
+            )
+
+        if not validated_data.get('purpose'):
+            validated_data['purpose'] = get_or_create_purpose(
+                purpose_name or 'Не указано'
+            )
         
         return super().create(validated_data)
 
@@ -241,7 +347,8 @@ class LandPlotUpdateSerializer(serializers.ModelSerializer):
         model = LandPlot
         fields = [
             'region', 'district', 'settlement', 'address', 'area', 'category',
-            'purpose', 'geometry_geojson', 'ownership_type', 'notes', 'is_active'
+            'purpose', 'geometry_geojson', 'ownership_type', 'notes', 'is_active',
+            'is_verified'
         ]
     
     def update(self, instance, validated_data):
@@ -249,8 +356,7 @@ class LandPlotUpdateSerializer(serializers.ModelSerializer):
         geometry_geojson = validated_data.pop('geometry_geojson', None)
         
         if geometry_geojson:
-            from django.contrib.gis.geos import GEOSGeometry
-            geometry = GEOSGeometry(str(geometry_geojson))
+            geometry = GEOSGeometry(json.dumps(geometry_geojson))
             validated_data['geometry'] = geometry
         
         return super().update(instance, validated_data)

@@ -6,7 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.gis.geos import GEOSGeometry, Point
 from django.contrib.gis.measure import Distance
 from django.contrib.gis.db.models.functions import Distance as GISDistance
-from django.db import transaction
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -228,7 +228,7 @@ class LandPlotListView(generics.ListCreateAPIView):
             )
             
             return Response(
-                LandPlotSerializer(land_plot).data,
+                LandPlotListSerializer(land_plot).data,
                 status=status.HTTP_201_CREATED
             )
 
@@ -282,7 +282,7 @@ class LandPlotDetailView(generics.RetrieveUpdateDestroyAPIView):
                 description=f'Land plot {land_plot.cadastral_number} updated'
             )
             
-            return Response(LandPlotSerializer(updated_land_plot).data)
+            return Response(LandPlotListSerializer(updated_land_plot).data)
     
     @swagger_auto_schema(
         operation_description="Delete land plot",
@@ -436,7 +436,7 @@ class LandPlotOwnerListView(generics.ListCreateAPIView):
             from apps.users.models import UserActivityLog
             UserActivityLog.objects.create(
                 user=request.user,
-                action='add_land_plot_owner',
+                action='add_plot_owner',
                 object_type='LandPlotOwner',
                 object_id=str(owner.id),
                 ip_address=get_client_ip(request),
@@ -500,7 +500,7 @@ class LandPlotDocumentListView(generics.ListCreateAPIView):
             from apps.users.models import UserActivityLog
             UserActivityLog.objects.create(
                 user=request.user,
-                action='upload_land_plot_document',
+                action='upload_plot_doc',
                 object_type='LandPlotDocument',
                 object_id=str(document.id),
                 ip_address=get_client_ip(request),

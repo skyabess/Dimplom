@@ -173,6 +173,12 @@ class UserActivityLog(models.Model):
         ('create_land_plot', _('Create Land Plot')),
         ('edit_land_plot', _('Edit Land Plot')),
         ('delete_land_plot', _('Delete Land Plot')),
+        ('edit_profile', _('Edit Profile')),
+        ('password_change', _('Password Change')),
+        ('upload_signature', _('Upload Digital Signature')),
+        ('assign_role', _('Assign Role')),
+        ('add_plot_owner', _('Add Land Plot Owner')),
+        ('upload_plot_doc', _('Upload Land Plot Document')),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='activities')

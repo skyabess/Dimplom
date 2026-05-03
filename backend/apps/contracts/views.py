@@ -4,6 +4,7 @@ Views for contracts app
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count, Avg, Sum
 from django.utils import timezone
@@ -14,13 +15,13 @@ from apps.core.permissions import IsOwnerOrReadOnly, IsAuthenticated
 from apps.core.pagination import StandardResultsSetPagination
 from apps.contracts.models import (
     Contract, ContractDocument, ContractSignature, 
-    ContractStage, ContractTemplate, ContractComment
+    ContractStage, ContractTemplate, ContractComment, ContractTask
 )
 from apps.contracts.serializers import (
     ContractSerializer, ContractDetailSerializer, ContractCreateSerializer,
     ContractDocumentSerializer, ContractSignatureSerializer,
     ContractStageSerializer, ContractTemplateSerializer,
-    ContractCommentSerializer
+    ContractCommentSerializer, ContractTaskSerializer
 )
 from apps.contracts.filters import ContractFilter
 from apps.contracts.services import ContractService
@@ -82,16 +83,7 @@ class ContractViewSet(viewsets.ModelViewSet):
         """
         Create contract with proper permissions and logging
         """
-        user = self.request.user
-        contract_service = ContractService()
-        
-        # Create contract through service layer
-        contract = contract_service.create_contract(
-            user=user,
-            validated_data=serializer.validated_data
-        )
-        
-        return contract
+        serializer.save()
     
     @extend_schema(
         summary="Подписать договор",
@@ -261,8 +253,6 @@ class ContractDocumentViewSet(viewsets.ModelViewSet):
         Create document with file validation
         """
         contract_id = self.kwargs.get('contract_pk')
-        user = self.request.user
-        
         # Validate file
         uploaded_file = serializer.validated_data.get('file')
         if uploaded_file:
@@ -289,7 +279,8 @@ class ContractDocumentViewSet(viewsets.ModelViewSet):
         
         return serializer.save(
             contract_id=contract_id,
-            uploaded_by=user
+            file_size=uploaded_file.size if uploaded_file else 0,
+            mime_type=uploaded_file.content_type if uploaded_file else 'application/octet-stream',
         )
 
 
