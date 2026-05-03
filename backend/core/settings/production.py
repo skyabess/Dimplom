@@ -103,12 +103,12 @@ CORS_ALLOWED_HEADERS = [
 
 # Email
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = config('EMAIL_HOST')
+EMAIL_HOST = config('EMAIL_HOST', default='localhost')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER or 'noreply@landcontracts.local')
 SERVER_EMAIL = config('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 
 # Storage
@@ -194,8 +194,8 @@ SENTRY_RELEASE = config('APP_VERSION', default='1.0.0')
 SENTRY_TRACES_SAMPLE_RATE = config('SENTRY_TRACES_SAMPLE_RATE', default=0.1, cast=float)
 
 # Application settings
-SITE_URL = config('SITE_URL')
-FRONTEND_URL = config('FRONTEND_URL')
+SITE_URL = config('SITE_URL', default='http://localhost')
+FRONTEND_URL = config('FRONTEND_URL', default=SITE_URL)
 API_VERSION = 'v1'
 
 # Electronic Signature
@@ -205,21 +205,21 @@ CRYPTOPRO_KEY_PATH = config('CRYPTOPRO_KEY_PATH', default='/etc/cryptopro/keys')
 
 # Rosreestr Integration
 ROSREESTR_API_URL = config('ROSREESTR_API_URL', default='https://rosreestr.ru/api')
-ROSREESTR_API_KEY = config('ROSREESTR_API_KEY')
+ROSREESTR_API_KEY = config('ROSREESTR_API_KEY', default='')
 ROSREESTR_TIMEOUT = config('ROSREESTR_TIMEOUT', default=30, cast=int)
 
 # Payment Integration
 PAYMENT_PROVIDERS = {
     'sberbank': {
-        'API_URL': config('SBERBANK_API_URL'),
-        'MERCHANT_ID': config('SBERBANK_MERCHANT_ID'),
-        'SECRET_KEY': config('SBERBANK_SECRET_KEY'),
+        'API_URL': config('SBERBANK_API_URL', default=''),
+        'MERCHANT_ID': config('SBERBANK_MERCHANT_ID', default=''),
+        'SECRET_KEY': config('SBERBANK_SECRET_KEY', default=''),
         'TIMEOUT': config('SBERBANK_TIMEOUT', default=30, cast=int),
     },
     'tinkoff': {
-        'API_URL': config('TINKOFF_API_URL'),
-        'TERMINAL_KEY': config('TINKOFF_TERMINAL_KEY'),
-        'SECRET_KEY': config('TINKOFF_SECRET_KEY'),
+        'API_URL': config('TINKOFF_API_URL', default=''),
+        'TERMINAL_KEY': config('TINKOFF_TERMINAL_KEY', default=''),
+        'SECRET_KEY': config('TINKOFF_SECRET_KEY', default=''),
         'TIMEOUT': config('TINKOFF_TIMEOUT', default=30, cast=int),
     },
 }
