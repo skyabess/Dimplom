@@ -12,6 +12,7 @@ import {
   TaskPriority,
   WorkspaceSnapshot,
 } from '../types/contract';
+import { createRandomId } from '../utils/id';
 import { contractStatusMeta } from '../utils/status';
 
 const API_BASE_URL =
@@ -166,7 +167,7 @@ const toNumber = (value: unknown, fallback = 0) => {
 };
 
 const normalizeLandPlot = (raw: Record<string, any>): LandPlotSummary => ({
-  id: String(raw.id || raw.cadastral_number || crypto.randomUUID()),
+  id: String(raw.id || raw.cadastral_number || createRandomId()),
   cadastral_number: String(raw.cadastral_number || raw.cadastralNumber || 'Не указан'),
   region_name: String(raw.region_name || raw.regionName || raw.region || 'Регион не указан'),
   district_name: raw.district_name,
@@ -185,7 +186,7 @@ const normalizeLandPlot = (raw: Record<string, any>): LandPlotSummary => ({
 });
 
 const normalizeDocument = (raw: Record<string, any>): DocumentItem => ({
-  id: String(raw.id || crypto.randomUUID()),
+  id: String(raw.id || createRandomId()),
   title: String(raw.title || raw.file_name || 'Документ'),
   contractId: raw.contract ? String(raw.contract) : undefined,
   landPlotId: raw.land_plot ? String(raw.land_plot) : undefined,
@@ -212,7 +213,7 @@ const normalizeTaskPriority = (value: unknown): TaskPriority => {
 };
 
 const normalizeTask = (raw: Record<string, any>): TaskItem => ({
-  id: String(raw.id || crypto.randomUUID()),
+  id: String(raw.id || createRandomId()),
   title: String(raw.title || 'Задача'),
   contractId: raw.contract ? String(raw.contract) : undefined,
   dueDate: raw.due_date || raw.dueDate || new Date().toISOString().slice(0, 10),
@@ -236,7 +237,7 @@ const normalizeContract = (
   const additionalFees = toNumber(raw.additional_fees);
 
   return {
-    id: String(raw.id || crypto.randomUUID()),
+    id: String(raw.id || createRandomId()),
     number: String(raw.number || raw.contract_number || `DK-${String(raw.id || '').slice(0, 8)}`),
     title: String(raw.title || 'Договор без названия'),
     description: String(raw.description || ''),

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createDemoSnapshot } from '../data/fixtures';
+import { createClientId } from '../utils/id';
 import {
   ApiError,
   approveContractDocument,
@@ -43,7 +44,7 @@ const STORAGE_KEY = 'land-contracts.workspace.v2';
 
 const todayIsoDate = () => new Date().toISOString().slice(0, 10);
 
-const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+const createId = createClientId;
 
 const readSnapshot = (): WorkspaceSnapshot => {
   try {
