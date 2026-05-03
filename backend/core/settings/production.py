@@ -9,7 +9,11 @@ from .base import *
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default=Csv(), cast=Csv)
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+    if host.strip()
+]
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -277,6 +281,7 @@ USE_L10N = True
 # Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = '/app/staticfiles'
+STATICFILES_DIRS = []
 
 # Media files
 MEDIA_URL = '/media/'
