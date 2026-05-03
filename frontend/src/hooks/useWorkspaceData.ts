@@ -20,6 +20,7 @@ import {
   toggleTask as toggleTaskApi,
   updateContract as updateContractApi,
   uploadContractDocument,
+  uploadLandPlotDocument,
   verifyLandPlot as verifyLandPlotApi,
 } from '../services/api';
 import {
@@ -638,13 +639,15 @@ export const useWorkspaceData = () => {
       };
     });
 
-    if (!canUseApi() || !draft.file || !draft.contractId) {
+    if (!canUseApi() || !draft.file || (!draft.contractId && !draft.landPlotId)) {
       addLocal();
       return;
     }
 
     try {
-      const document = await uploadContractDocument(draft);
+      const document = draft.contractId
+        ? await uploadContractDocument(draft)
+        : await uploadLandPlotDocument(draft);
       setSnapshot((current) => ({
         ...current,
         documents: [document, ...current.documents.filter((item) => item.id !== document.id)],

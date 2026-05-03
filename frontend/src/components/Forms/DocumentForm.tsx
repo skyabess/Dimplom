@@ -39,6 +39,11 @@ const DocumentForm = ({
       return;
     }
 
+    if (!contractId && !landPlotId) {
+      setError('Выберите договор или участок, чтобы документ синхронизировался между ПК');
+      return;
+    }
+
     onSubmit({
       title,
       contractId: contractId || undefined,

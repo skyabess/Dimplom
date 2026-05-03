@@ -187,11 +187,14 @@ const normalizeLandPlot = (raw: Record<string, any>): LandPlotSummary => ({
 
 const normalizeDocument = (raw: Record<string, any>): DocumentItem => ({
   id: String(raw.id || createRandomId()),
-  title: String(raw.title || raw.file_name || 'Документ'),
+  title: String(raw.title || raw.description || raw.file_name || 'Документ'),
   contractId: raw.contract ? String(raw.contract) : undefined,
   landPlotId: raw.land_plot ? String(raw.land_plot) : undefined,
   documentType:
-    raw.document_type === 'registration'
+    raw.document_type === 'registration' ||
+    raw.document_type === 'cadastral_passport' ||
+    raw.document_type === 'ownership_certificate' ||
+    raw.document_type === 'survey_plan'
       ? 'egrn'
       : raw.document_type === 'payment_proof'
         ? 'payment'
@@ -320,6 +323,14 @@ const documentTypeMap: Record<DocumentItem['documentType'], string> = {
   other: 'other',
 };
 
+const landPlotDocumentTypeMap: Record<DocumentItem['documentType'], string> = {
+  contract: 'other',
+  egrn: 'cadastral_passport',
+  payment: 'other',
+  identity: 'ownership_certificate',
+  other: 'other',
+};
+
 export const login = async (draft: LoginDraft) => {
   clearStoredAuth();
   const response = await requestJson<AuthResponse>('/auth/login/', {
@@ -392,7 +403,7 @@ export const loadApiSnapshot = async (): Promise<Partial<WorkspaceSnapshot>> => 
   );
 
   const contracts = detailRows.map((contract) => normalizeContract(contract, landPlots));
-  const documents = detailRows.flatMap((contract) =>
+  const contractDocuments = detailRows.flatMap((contract) =>
     Array.isArray(contract.documents)
       ? contract.documents.filter(isRecord).map((document) => ({
           ...normalizeDocument(document),
@@ -400,6 +411,26 @@ export const loadApiSnapshot = async (): Promise<Partial<WorkspaceSnapshot>> => 
         }))
       : [],
   );
+  const landPlotDocumentGroups = await Promise.all(
+    landPlots.map((plot) =>
+      requestJson<Record<string, any>[] | PaginatedResponse<Record<string, any>>>(
+        `/land-plots/plots/${plot.id}/documents/`,
+      )
+        .then((payload) =>
+          normalizeList(payload)
+            .filter(isRecord)
+            .map((document) => ({
+              ...normalizeDocument(document),
+              landPlotId: plot.id,
+            })),
+        )
+        .catch(() => []),
+    ),
+  );
+  const documents = [
+    ...contractDocuments,
+    ...landPlotDocumentGroups.flat(),
+  ];
   const tasks = normalizeList(taskPayloadResponse)
     .filter(isRecord)
     .map(normalizeTask);
@@ -514,7 +545,35 @@ export const uploadContractDocument = async (draft: DocumentDraft) => {
     body,
   });
 
-  return normalizeDocument(raw);
+  return {
+    ...normalizeDocument(raw),
+    contractId: draft.contractId,
+  };
+};
+
+export const uploadLandPlotDocument = async (draft: DocumentDraft) => {
+  if (!draft.landPlotId || !draft.file) {
+    throw new ApiError(400, 'Для загрузки документа нужен участок и файл.');
+  }
+
+  const body = new FormData();
+  body.append('document_type', landPlotDocumentTypeMap[draft.documentType]);
+  body.append('description', draft.title);
+  body.append('file', draft.file);
+
+  const raw = await requestJson<Record<string, any>>(
+    `/land-plots/plots/${draft.landPlotId}/documents/`,
+    {
+      method: 'POST',
+      body,
+    },
+  );
+
+  return {
+    ...normalizeDocument(raw),
+    title: draft.title,
+    landPlotId: draft.landPlotId,
+  };
 };
 
 export const approveContractDocument = async (document: DocumentItem) => {
