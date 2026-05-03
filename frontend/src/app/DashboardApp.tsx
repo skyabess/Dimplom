@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import '../App.css';
 import DashboardView from '../components/Dashboard/DashboardView';
+import AuthForm from '../components/Forms/AuthForm';
 import ContractForm from '../components/Forms/ContractForm';
 import DocumentForm from '../components/Forms/DocumentForm';
 import LandPlotForm from '../components/Forms/LandPlotForm';
@@ -13,6 +14,7 @@ type ModalState =
   | { type: 'contract'; contract?: Contract }
   | { type: 'plot' }
   | { type: 'document'; contractId?: string }
+  | { type: 'auth' }
   | null;
 
 const matches = (value: string, query: string) =>
@@ -97,9 +99,15 @@ const DashboardApp = () => {
     <AppLayout
       activeView={activeView}
       apiState={workspace.apiState}
+      authUser={workspace.authUser}
+      onAuth={() => setModal({ type: 'auth' })}
       onImportLandPlot={() => setModal({ type: 'plot' })}
+      onLogout={workspace.logout}
       onNewContract={() => setModal({ type: 'contract' })}
       onQueryChange={setQuery}
+      onSync={() => {
+        workspace.syncFromApi().catch(() => undefined);
+      }}
       onUploadDocument={() => setModal({ type: 'document' })}
       onViewChange={setActiveView}
       pendingActions={workspace.metrics.pendingTasks + workspace.metrics.documentsOnReview}
@@ -132,11 +140,11 @@ const DashboardApp = () => {
             initialContract={modal.contract}
             landPlots={workspace.landPlots}
             onCancel={closeModal}
-            onSubmit={(draft) => {
+            onSubmit={async (draft) => {
               if (modal.contract) {
-                workspace.updateContract(modal.contract.id, draft);
+                await workspace.updateContract(modal.contract.id, draft);
               } else {
-                workspace.createContract(draft);
+                await workspace.createContract(draft);
               }
               closeModal();
             }}
@@ -154,8 +162,8 @@ const DashboardApp = () => {
           <LandPlotForm
             mode="egrn"
             onCancel={closeModal}
-            onSubmit={(draft) => {
-              workspace.createLandPlot(draft);
+            onSubmit={async (draft) => {
+              await workspace.createLandPlot(draft);
               closeModal();
             }}
           />
@@ -173,10 +181,20 @@ const DashboardApp = () => {
             initialContractId={modal.contractId}
             landPlots={workspace.landPlots}
             onCancel={closeModal}
-            onSubmit={(draft) => {
-              workspace.addDocument(draft);
+            onSubmit={async (draft) => {
+              await workspace.addDocument(draft);
               closeModal();
             }}
+          />
+        )}
+      </Modal>
+
+      <Modal onClose={closeModal} open={modal?.type === 'auth'} title="Вход в систему">
+        {modal?.type === 'auth' && (
+          <AuthForm
+            onCancel={closeModal}
+            onLogin={workspace.login}
+            onRegister={workspace.register}
           />
         )}
       </Modal>

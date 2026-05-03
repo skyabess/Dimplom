@@ -12,7 +12,7 @@ export type CurrencyCode = 'RUB' | 'USD' | 'EUR';
 
 export type TaskPriority = 'low' | 'medium' | 'high';
 
-export type ApiConnectionStatus = 'checking' | 'connected' | 'offline';
+export type ApiConnectionStatus = 'checking' | 'connected' | 'unauthorized' | 'offline';
 
 export interface PartySummary {
   id?: string;
@@ -133,9 +133,32 @@ export interface DocumentDraft {
   documentType: DocumentItem['documentType'];
   fileName: string;
   fileSize: number;
+  file?: File;
 }
 
 export interface ApiState {
   status: ApiConnectionStatus;
   message: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  username?: string;
+  full_name: string;
+  first_name?: string;
+  last_name?: string;
+  roles?: Array<{ role: string; role_display?: string }>;
+}
+
+export interface LoginDraft {
+  email: string;
+  password: string;
+}
+
+export interface RegisterDraft extends LoginDraft {
+  username: string;
+  firstName: string;
+  lastName: string;
+  passwordConfirm: string;
 }

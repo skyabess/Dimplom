@@ -30,7 +30,19 @@ class ContractService:
         return signature
 
     def create_signature(self, contract, user, signature_data, ip_address=None, user_agent=None):
-        signature_type = 'seller' if contract.seller_id == user.id else 'buyer'
+        active_roles = set()
+        if hasattr(user, 'roles'):
+            active_roles = set(user.roles.filter(is_active=True).values_list('role', flat=True))
+
+        if contract.seller_id == user.id:
+            signature_type = 'seller'
+        elif contract.buyer_id == user.id:
+            signature_type = 'buyer'
+        elif 'notary' in active_roles:
+            signature_type = 'notary'
+        else:
+            signature_type = 'witness'
+
         return ContractSignature.objects.create(
             contract=contract,
             signer=user,

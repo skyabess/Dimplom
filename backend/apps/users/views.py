@@ -45,6 +45,7 @@ class UserRegistrationView(generics.CreateAPIView):
             
             # Create user profile
             UserProfile.objects.create(user=user)
+            UserRole.objects.get_or_create(user=user, role='realtor')
             
             # Log activity
             UserActivityLog.objects.create(
@@ -87,11 +88,14 @@ class UserLoginView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         
         user = serializer.validated_data['user']
+
+        if not request.session.session_key:
+            request.session.create()
         
         # Create user session
         session = UserSession.objects.create(
             user=user,
-            session_key=request.session.session_key or '',
+            session_key=request.session.session_key,
             ip_address=self.get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', ''),
             expires_at=timezone.now() + timezone.timedelta(days=30)
@@ -363,7 +367,7 @@ class DigitalSignatureUploadView(generics.GenericAPIView):
         # Log activity
         UserActivityLog.objects.create(
             user=user,
-            action='upload_digital_signature',
+            action='upload_signature',
             ip_address=get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', ''),
             description='Digital signature certificate uploaded'

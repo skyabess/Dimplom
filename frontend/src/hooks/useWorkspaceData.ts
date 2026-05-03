@@ -1,8 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createDemoSnapshot } from '../data/fixtures';
-import { loadApiSnapshot } from '../services/api';
+import {
+  ApiError,
+  approveContractDocument,
+  clearAuthSession,
+  createContract as createContractApi,
+  createLandPlot as createLandPlotApi,
+  createTask as createTaskApi,
+  deleteContract as deleteContractApi,
+  getAccessToken,
+  getProfile,
+  getStoredUser,
+  loadApiSnapshot,
+  login as loginApi,
+  logout as logoutApi,
+  register as registerApi,
+  signContract as signContractApi,
+  toggleTask as toggleTaskApi,
+  updateContract as updateContractApi,
+  uploadContractDocument,
+  verifyLandPlot as verifyLandPlotApi,
+} from '../services/api';
 import {
   ApiState,
+  AuthUser,
   Contract,
   ContractDraft,
   ContractStatus,
@@ -10,6 +31,8 @@ import {
   DocumentItem,
   LandPlotDraft,
   LandPlotSummary,
+  LoginDraft,
+  RegisterDraft,
   TaskItem,
   TaskPriority,
   WorkspaceSnapshot,
@@ -115,56 +138,109 @@ const updateContractFromDraft = (
 
 export const useWorkspaceData = () => {
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(() => readSnapshot());
+  const [authUser, setAuthUser] = useState<AuthUser | undefined>(() => getStoredUser());
   const [apiState, setApiState] = useState<ApiState>({
     status: 'checking',
     message: 'Проверяем подключение к API',
   });
 
+  const applyApiSnapshot = useCallback((apiSnapshot: Partial<WorkspaceSnapshot>) => {
+    const hasApiSnapshot =
+      apiSnapshot.contracts !== undefined ||
+      apiSnapshot.landPlots !== undefined ||
+      apiSnapshot.tasks !== undefined ||
+      apiSnapshot.documents !== undefined;
+    const hasServerRows =
+      Boolean(apiSnapshot.contracts?.length) ||
+      Boolean(apiSnapshot.landPlots?.length) ||
+      Boolean(apiSnapshot.tasks?.length) ||
+      Boolean(apiSnapshot.documents?.length);
+
+    if (hasApiSnapshot) {
+      setSnapshot((current) => ({
+        ...current,
+        contracts: apiSnapshot.contracts ?? current.contracts,
+        landPlots: apiSnapshot.landPlots ?? current.landPlots,
+        tasks: apiSnapshot.tasks ?? current.tasks,
+        documents: apiSnapshot.documents ?? current.documents,
+        updatedAt: apiSnapshot.updatedAt || new Date().toISOString(),
+      }));
+      setApiState({
+        status: 'connected',
+        message: hasServerRows
+          ? 'Данные загружены из API'
+          : 'API доступен, серверных данных пока нет.',
+      });
+    } else {
+      setApiState({
+        status: 'connected',
+        message: 'API доступен, но пока без данных. Используется рабочий локальный набор.',
+      });
+    }
+  }, []);
+
+  const handleApiError = useCallback((error: unknown) => {
+    if (error instanceof ApiError && error.status === 401) {
+      clearAuthSession();
+      setAuthUser(undefined);
+      setApiState({
+        status: 'unauthorized',
+        message: 'Войдите в систему, чтобы синхронизировать данные с сервером.',
+      });
+      return;
+    }
+
+    const message = error instanceof Error ? error.message : 'API недоступен';
+    setApiState({
+      status: 'offline',
+      message: `${message}. Данные сохраняются локально в браузере.`,
+    });
+  }, []);
+
+  const syncFromApi = useCallback(async () => {
+    try {
+      const apiSnapshot = await loadApiSnapshot();
+      applyApiSnapshot(apiSnapshot);
+    } catch (error) {
+      handleApiError(error);
+    }
+  }, [applyApiSnapshot, handleApiError]);
+
+  const canUseApi = useCallback(() => Boolean(getAccessToken()), []);
+
   useEffect(() => {
     let isMounted = true;
 
-    loadApiSnapshot()
-      .then((apiSnapshot) => {
-        if (!isMounted) {
-          return;
-        }
-
-        const hasApiData =
-          Boolean(apiSnapshot.contracts?.length) || Boolean(apiSnapshot.landPlots?.length);
-
-        if (hasApiData) {
-          setSnapshot((current) => ({
-            ...current,
-            contracts: apiSnapshot.contracts?.length ? apiSnapshot.contracts : current.contracts,
-            landPlots: apiSnapshot.landPlots?.length ? apiSnapshot.landPlots : current.landPlots,
-            updatedAt: apiSnapshot.updatedAt || new Date().toISOString(),
-          }));
+    const bootstrap = async () => {
+      if (!getAccessToken()) {
+        if (isMounted) {
           setApiState({
-            status: 'connected',
-            message: 'Данные загружены из API',
-          });
-        } else {
-          setApiState({
-            status: 'connected',
-            message: 'API доступен, но пока без данных. Используется рабочий локальный набор.',
+            status: 'unauthorized',
+            message: 'Войдите в систему, чтобы синхронизировать данные с сервером.',
           });
         }
-      })
-      .catch((error: Error) => {
-        if (!isMounted) {
-          return;
-        }
+        return;
+      }
 
-        setApiState({
-          status: 'offline',
-          message: `${error.message}. Данные сохраняются локально в браузере.`,
-        });
-      });
+      try {
+        const profile = await getProfile();
+        if (isMounted && profile) {
+          setAuthUser(profile);
+        }
+        await syncFromApi();
+      } catch (error) {
+        if (isMounted) {
+          handleApiError(error);
+        }
+      }
+    };
+
+    bootstrap();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [handleApiError, syncFromApi]);
 
   useEffect(() => {
     persistSnapshot(snapshot);
@@ -192,8 +268,8 @@ export const useWorkspaceData = () => {
     };
   }, [snapshot]);
 
-  const createContract = useCallback((draft: ContractDraft) => {
-    setSnapshot((current) => {
+  const createContract = useCallback(async (draft: ContractDraft) => {
+    const createLocal = () => setSnapshot((current) => {
       const landPlot =
         current.landPlots.find((plot) => plot.id === draft.landPlotId) || current.landPlots[0];
       const contract = createContractFromDraft(draft, landPlot, current.contracts);
@@ -203,10 +279,27 @@ export const useWorkspaceData = () => {
         contracts: [contract, ...current.contracts],
       };
     });
-  }, []);
 
-  const updateContract = useCallback((id: string, draft: ContractDraft) => {
-    setSnapshot((current) => {
+    if (!canUseApi()) {
+      createLocal();
+      return;
+    }
+
+    try {
+      const contract = await createContractApi(draft, snapshot.landPlots);
+      setSnapshot((current) => ({
+        ...current,
+        contracts: [contract, ...current.contracts.filter((item) => item.id !== contract.id)],
+      }));
+      setApiState({ status: 'connected', message: 'Договор сохранен на сервере.' });
+    } catch (error) {
+      handleApiError(error);
+      createLocal();
+    }
+  }, [canUseApi, handleApiError, snapshot.landPlots]);
+
+  const updateContract = useCallback(async (id: string, draft: ContractDraft) => {
+    const updateLocal = () => setSnapshot((current) => {
       const landPlot =
         current.landPlots.find((plot) => plot.id === draft.landPlotId) || current.landPlots[0];
 
@@ -217,10 +310,27 @@ export const useWorkspaceData = () => {
         ),
       };
     });
-  }, []);
 
-  const changeContractStatus = useCallback((id: string, status: ContractStatus) => {
-    setSnapshot((current) => ({
+    if (!canUseApi()) {
+      updateLocal();
+      return;
+    }
+
+    try {
+      const contract = await updateContractApi(id, draft, snapshot.landPlots);
+      setSnapshot((current) => ({
+        ...current,
+        contracts: current.contracts.map((item) => (item.id === id ? contract : item)),
+      }));
+      setApiState({ status: 'connected', message: 'Договор обновлен на сервере.' });
+    } catch (error) {
+      handleApiError(error);
+      updateLocal();
+    }
+  }, [canUseApi, handleApiError, snapshot.landPlots]);
+
+  const changeContractStatus = useCallback(async (id: string, status: ContractStatus) => {
+    const changeLocal = () => setSnapshot((current) => ({
       ...current,
       contracts: current.contracts.map((contract) =>
         contract.id === id
@@ -234,10 +344,46 @@ export const useWorkspaceData = () => {
           : contract,
       ),
     }));
-  }, []);
 
-  const deleteContract = useCallback((id: string) => {
-    setSnapshot((current) => ({
+    if (!canUseApi()) {
+      changeLocal();
+      return;
+    }
+
+    try {
+      if (status === 'signed') {
+        await signContractApi(id);
+      } else {
+        const contract = snapshot.contracts.find((item) => item.id === id);
+        if (contract) {
+          await updateContractApi(id, {
+            title: contract.title,
+            description: contract.description,
+            sellerName: contract.seller.full_name,
+            buyerName: contract.buyer.full_name,
+            landPlotId: contract.land_plot.id,
+            price: contract.price,
+            currency: contract.currency,
+            additionalFees: contract.additional_fees,
+            status,
+            startDate: contract.start_date,
+            endDate: contract.end_date,
+            paymentTerms: contract.payment_terms || '',
+            specialConditions: contract.special_conditions || '',
+            tags: contract.tags,
+          }, snapshot.landPlots);
+        }
+      }
+      await syncFromApi();
+      setApiState({ status: 'connected', message: 'Статус договора обновлен на сервере.' });
+    } catch (error) {
+      handleApiError(error);
+      changeLocal();
+    }
+  }, [canUseApi, handleApiError, snapshot.contracts, snapshot.landPlots, syncFromApi]);
+
+  const deleteContract = useCallback(async (id: string) => {
+    const deleteLocal = () => setSnapshot((current) => ({
       ...current,
       contracts: current.contracts.filter((contract) => contract.id !== id),
       tasks: current.tasks.map((task) =>
@@ -247,10 +393,24 @@ export const useWorkspaceData = () => {
         document.contractId === id ? { ...document, contractId: undefined } : document,
       ),
     }));
-  }, []);
 
-  const createLandPlot = useCallback((draft: LandPlotDraft) => {
-    setSnapshot((current) => {
+    if (!canUseApi()) {
+      deleteLocal();
+      return;
+    }
+
+    try {
+      await deleteContractApi(id);
+      deleteLocal();
+      setApiState({ status: 'connected', message: 'Договор удален на сервере.' });
+    } catch (error) {
+      handleApiError(error);
+      deleteLocal();
+    }
+  }, [canUseApi, handleApiError]);
+
+  const createLandPlot = useCallback(async (draft: LandPlotDraft) => {
+    const createLocal = () => setSnapshot((current) => {
       const plot: LandPlotSummary = {
         id: createId('plot'),
         cadastral_number: draft.cadastralNumber.trim(),
@@ -273,10 +433,27 @@ export const useWorkspaceData = () => {
         landPlots: [plot, ...current.landPlots],
       };
     });
-  }, []);
 
-  const verifyLandPlot = useCallback((id: string) => {
-    setSnapshot((current) => ({
+    if (!canUseApi()) {
+      createLocal();
+      return;
+    }
+
+    try {
+      const plot = await createLandPlotApi(draft);
+      setSnapshot((current) => ({
+        ...current,
+        landPlots: [plot, ...current.landPlots.filter((item) => item.id !== plot.id)],
+      }));
+      setApiState({ status: 'connected', message: 'Участок сохранен на сервере.' });
+    } catch (error) {
+      handleApiError(error);
+      createLocal();
+    }
+  }, [canUseApi, handleApiError]);
+
+  const verifyLandPlot = useCallback(async (id: string) => {
+    const verifyLocal = () => setSnapshot((current) => ({
       ...current,
       landPlots: current.landPlots.map((plot) =>
         plot.id === id
@@ -288,10 +465,27 @@ export const useWorkspaceData = () => {
           : plot,
       ),
     }));
-  }, []);
+
+    if (!canUseApi()) {
+      verifyLocal();
+      return;
+    }
+
+    try {
+      const plot = await verifyLandPlotApi(id);
+      setSnapshot((current) => ({
+        ...current,
+        landPlots: current.landPlots.map((item) => (item.id === id ? plot : item)),
+      }));
+      setApiState({ status: 'connected', message: 'Участок подтвержден на сервере.' });
+    } catch (error) {
+      handleApiError(error);
+      verifyLocal();
+    }
+  }, [canUseApi, handleApiError]);
 
   const addTask = useCallback(
-    (title: string, priority: TaskPriority = 'medium', contractId?: string) => {
+    async (title: string, priority: TaskPriority = 'medium', contractId?: string) => {
       const task: TaskItem = {
         id: createId('task'),
         title: title.trim(),
@@ -302,25 +496,60 @@ export const useWorkspaceData = () => {
         completed: false,
       };
 
-      setSnapshot((current) => ({
+      const addLocal = () => setSnapshot((current) => ({
         ...current,
         tasks: [task, ...current.tasks],
       }));
+
+      if (!canUseApi()) {
+        addLocal();
+        return;
+      }
+
+      try {
+        const savedTask = await createTaskApi(title, priority, contractId);
+        setSnapshot((current) => ({
+          ...current,
+          tasks: [savedTask, ...current.tasks.filter((item) => item.id !== savedTask.id)],
+        }));
+        setApiState({ status: 'connected', message: 'Задача сохранена на сервере.' });
+      } catch (error) {
+        handleApiError(error);
+        addLocal();
+      }
     },
-    [],
+    [canUseApi, handleApiError],
   );
 
-  const toggleTask = useCallback((id: string) => {
-    setSnapshot((current) => ({
+  const toggleTask = useCallback(async (id: string) => {
+    const toggleLocal = () => setSnapshot((current) => ({
       ...current,
       tasks: current.tasks.map((task) =>
         task.id === id ? { ...task, completed: !task.completed } : task,
       ),
     }));
-  }, []);
+    const task = snapshot.tasks.find((item) => item.id === id);
 
-  const addDocument = useCallback((draft: DocumentDraft) => {
-    setSnapshot((current) => {
+    if (!canUseApi() || !task) {
+      toggleLocal();
+      return;
+    }
+
+    try {
+      const updatedTask = await toggleTaskApi(task);
+      setSnapshot((current) => ({
+        ...current,
+        tasks: current.tasks.map((item) => (item.id === id ? updatedTask : item)),
+      }));
+      setApiState({ status: 'connected', message: 'Задача обновлена на сервере.' });
+    } catch (error) {
+      handleApiError(error);
+      toggleLocal();
+    }
+  }, [canUseApi, handleApiError, snapshot.tasks]);
+
+  const addDocument = useCallback(async (draft: DocumentDraft) => {
+    const addLocal = () => setSnapshot((current) => {
       const document: DocumentItem = {
         id: createId('doc'),
         title: draft.title.trim(),
@@ -343,29 +572,104 @@ export const useWorkspaceData = () => {
                 document_ids: [...contract.document_ids, document.id],
                 updated_at: new Date().toISOString(),
               }
-            : contract,
+          : contract,
         ),
       };
     });
-  }, []);
 
-  const approveDocument = useCallback((id: string) => {
-    setSnapshot((current) => ({
+    if (!canUseApi() || !draft.file || !draft.contractId) {
+      addLocal();
+      return;
+    }
+
+    try {
+      const document = await uploadContractDocument(draft);
+      setSnapshot((current) => ({
+        ...current,
+        documents: [document, ...current.documents.filter((item) => item.id !== document.id)],
+        contracts: current.contracts.map((contract) =>
+          contract.id === draft.contractId
+            ? {
+                ...contract,
+                document_ids: [...new Set([...contract.document_ids, document.id])],
+                updated_at: new Date().toISOString(),
+              }
+            : contract,
+        ),
+      }));
+      setApiState({ status: 'connected', message: 'Документ загружен на сервер.' });
+    } catch (error) {
+      handleApiError(error);
+      addLocal();
+    }
+  }, [canUseApi, handleApiError]);
+
+  const approveDocument = useCallback(async (id: string) => {
+    const approveLocal = () => setSnapshot((current) => ({
       ...current,
       documents: current.documents.map((document) =>
         document.id === id ? { ...document, status: 'approved' } : document,
       ),
     }));
-  }, []);
+
+    const document = snapshot.documents.find((item) => item.id === id);
+
+    if (!canUseApi() || !document?.contractId) {
+      approveLocal();
+      return;
+    }
+
+    try {
+      const approvedDocument = await approveContractDocument(document);
+      setSnapshot((current) => ({
+        ...current,
+        documents: current.documents.map((item) =>
+          item.id === id ? approvedDocument : item,
+        ),
+      }));
+      setApiState({ status: 'connected', message: 'Документ принят на сервере.' });
+    } catch (error) {
+      handleApiError(error);
+      approveLocal();
+    }
+  }, [canUseApi, handleApiError, snapshot.documents]);
 
   const resetDemoData = useCallback(() => {
     setSnapshot(createDemoSnapshot());
   }, []);
 
+  const login = useCallback(async (draft: LoginDraft) => {
+    const user = await loginApi(draft);
+    setAuthUser(user);
+    await syncFromApi();
+    return user;
+  }, [syncFromApi]);
+
+  const register = useCallback(async (draft: RegisterDraft) => {
+    const user = await registerApi(draft);
+    setAuthUser(user);
+    await syncFromApi();
+    return user;
+  }, [syncFromApi]);
+
+  const logout = useCallback(async () => {
+    await logoutApi();
+    setAuthUser(undefined);
+    setApiState({
+      status: 'unauthorized',
+      message: 'Вы вышли из системы. Данные сохраняются локально.',
+    });
+  }, []);
+
   return {
     ...snapshot,
+    authUser,
     apiState,
     metrics,
+    login,
+    register,
+    logout,
+    syncFromApi,
     createContract,
     updateContract,
     changeContractStatus,

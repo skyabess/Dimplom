@@ -815,6 +815,29 @@ h3 {
   gap: 10px;
 }
 
+.segmented-control {
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: #eef3f8;
+  border-radius: 8px;
+}
+
+.segmented-control button {
+  border-radius: 6px;
+  color: #475569;
+  background: transparent;
+  cursor: pointer;
+}
+
+.segmented-control button.active {
+  color: var(--ink);
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
 @media (max-width: 1200px) {
   .metrics-grid,
   .report-grid {

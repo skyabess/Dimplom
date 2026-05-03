@@ -5,9 +5,12 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import DescriptionIcon from '@mui/icons-material/Description';
 import MapIcon from '@mui/icons-material/Map';
 import SearchIcon from '@mui/icons-material/Search';
+import LoginIcon from '@mui/icons-material/Login';
+import LogoutIcon from '@mui/icons-material/Logout';
+import SyncIcon from '@mui/icons-material/Sync';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { ReactNode } from 'react';
-import { ApiState } from '../../types/contract';
+import { ApiState, AuthUser } from '../../types/contract';
 
 export type WorkspaceView = 'overview' | 'contracts' | 'plots' | 'documents' | 'reports';
 
@@ -16,12 +19,16 @@ interface AppLayoutProps {
   activeView: WorkspaceView;
   query: string;
   apiState: ApiState;
+  authUser?: AuthUser;
   pendingActions: number;
   onViewChange: (view: WorkspaceView) => void;
   onQueryChange: (value: string) => void;
   onNewContract: () => void;
   onImportLandPlot: () => void;
   onUploadDocument: () => void;
+  onAuth: () => void;
+  onLogout: () => void;
+  onSync: () => void;
 }
 
 const navItems: Array<{
@@ -39,6 +46,7 @@ const navItems: Array<{
 const apiTone = {
   checking: 'info',
   connected: 'success',
+  unauthorized: 'warning',
   offline: 'warning',
 };
 
@@ -47,12 +55,16 @@ const AppLayout = ({
   activeView,
   query,
   apiState,
+  authUser,
   pendingActions,
   onViewChange,
   onQueryChange,
   onNewContract,
   onImportLandPlot,
   onUploadDocument,
+  onAuth,
+  onLogout,
+  onSync,
 }: AppLayoutProps) => (
   <div className="app-shell">
     <aside className="sidebar">
@@ -98,6 +110,10 @@ const AppLayout = ({
         </div>
 
         <div className="topbar-actions">
+          <button className="icon-text-button" onClick={onSync} type="button">
+            <SyncIcon fontSize="small" />
+            <span>Синхронизировать</span>
+          </button>
           <label className="search-control">
             <SearchIcon fontSize="small" />
             <input
@@ -119,6 +135,17 @@ const AppLayout = ({
             <AddIcon fontSize="small" />
             <span>Договор</span>
           </button>
+          {authUser ? (
+            <button className="icon-text-button" onClick={onLogout} type="button">
+              <LogoutIcon fontSize="small" />
+              <span>{authUser.full_name || authUser.email}</span>
+            </button>
+          ) : (
+            <button className="icon-text-button" onClick={onAuth} type="button">
+              <LoginIcon fontSize="small" />
+              <span>Войти</span>
+            </button>
+          )}
         </div>
       </header>
 

@@ -23,6 +23,7 @@ const DocumentForm = ({
   const [documentType, setDocumentType] = useState<DocumentItem['documentType']>('contract');
   const [fileName, setFileName] = useState('');
   const [fileSize, setFileSize] = useState(0);
+  const [file, setFile] = useState<File | undefined>();
   const [error, setError] = useState('');
 
   const handleSubmit = (event: FormEvent) => {
@@ -45,6 +46,7 @@ const DocumentForm = ({
       documentType,
       fileName,
       fileSize,
+      file,
     });
   };
 
@@ -100,9 +102,10 @@ const DocumentForm = ({
         <span>{fileName || 'Выберите файл'}</span>
         <input
           onChange={(event) => {
-            const file = event.target.files?.[0];
-            setFileName(file?.name || '');
-            setFileSize(file?.size || 0);
+            const selectedFile = event.target.files?.[0];
+            setFile(selectedFile);
+            setFileName(selectedFile?.name || '');
+            setFileSize(selectedFile?.size || 0);
           }}
           type="file"
         />
