@@ -505,3 +505,32 @@ class ContractCommentViewSet(viewsets.ModelViewSet):
             contract_id=contract_id,
             author=user
         )
+
+
+class ContractTaskViewSet(viewsets.ModelViewSet):
+    """ViewSet for operational contract tasks used by the frontend workspace."""
+
+    serializer_class = ContractTaskSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = ContractTask.objects.select_related(
+            'contract',
+            'contract__seller',
+            'contract__buyer',
+            'created_by',
+        )
+
+        if user.is_staff or user.is_superuser or user_has_role(user, 'system_admin', 'company_admin'):
+            return queryset
+
+        return queryset.filter(
+            Q(created_by=user) |
+            Q(contract__seller=user) |
+            Q(contract__buyer=user)
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
