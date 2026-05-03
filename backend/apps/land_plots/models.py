@@ -166,6 +166,7 @@ class LandPlot(models.Model):
         verbose_name = _('Land Plot')
         verbose_name_plural = _('Land Plots')
         db_table = 'land_plots'
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['cadastral_number']),
             models.Index(fields=['region', 'district', 'settlement']),

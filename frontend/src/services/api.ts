@@ -21,6 +21,13 @@ const ACCESS_TOKEN_KEY = 'land-contracts.accessToken';
 const REFRESH_TOKEN_KEY = 'land-contracts.refreshToken';
 const USER_KEY = 'land-contracts.user';
 
+const clearStoredAuth = () => {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem('access_token');
+};
+
 interface PaginatedResponse<T> {
   results?: T[];
   count?: number;
@@ -44,8 +51,39 @@ export class ApiError extends Error {
 const isRecord = (value: unknown): value is Record<string, any> =>
   typeof value === 'object' && value !== null;
 
-export const getAccessToken = () =>
-  localStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem('access_token');
+const isExpiredToken = (token: string) => {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) {
+      return true;
+    }
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      '=',
+    );
+    const parsedPayload = JSON.parse(window.atob(paddedPayload));
+    return typeof parsedPayload.exp === 'number' && parsedPayload.exp * 1000 <= Date.now() + 5000;
+  } catch {
+    return true;
+  }
+};
+
+export const getAccessToken = () => {
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  if (!token) {
+    localStorage.removeItem('access_token');
+    return null;
+  }
+
+  if (isExpiredToken(token)) {
+    clearStoredAuth();
+    return null;
+  }
+
+  return token;
+};
 
 const setAuthSession = (response: AuthResponse) => {
   localStorage.setItem(ACCESS_TOKEN_KEY, response.access);
@@ -54,10 +92,7 @@ const setAuthSession = (response: AuthResponse) => {
 };
 
 export const clearAuthSession = () => {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-  localStorage.removeItem('access_token');
+  clearStoredAuth();
 };
 
 export const getStoredUser = (): AuthUser | undefined => {
@@ -285,6 +320,7 @@ const documentTypeMap: Record<DocumentItem['documentType'], string> = {
 };
 
 export const login = async (draft: LoginDraft) => {
+  clearStoredAuth();
   const response = await requestJson<AuthResponse>('/auth/login/', {
     method: 'POST',
     body: JSON.stringify({
@@ -297,6 +333,7 @@ export const login = async (draft: LoginDraft) => {
 };
 
 export const register = async (draft: RegisterDraft) => {
+  clearStoredAuth();
   const response = await requestJson<AuthResponse>('/auth/register/', {
     method: 'POST',
     body: JSON.stringify({
