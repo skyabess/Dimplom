@@ -42,6 +42,7 @@ class ContractViewSet(viewsets.ModelViewSet):
     filterset_class = ContractFilter
     pagination_class = StandardResultsSetPagination
     lookup_field = 'id'
+    lookup_url_kwarg = 'pk'
     
     def get_queryset(self):
         """
@@ -269,7 +270,10 @@ class ContractDocumentViewSet(viewsets.ModelViewSet):
                 'application/msword',
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'image/jpeg',
+                'image/png',
+                'text/plain',
             ]
             
             if uploaded_file.content_type not in allowed_types:

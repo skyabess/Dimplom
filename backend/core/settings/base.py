@@ -279,7 +279,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 # Cache settings
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
@@ -288,7 +288,7 @@ CACHES = {
 }
 
 # Storage settings (for production)
-if not DEBUG:
+if not DEBUG and os.environ.get('USE_S3_STORAGE', 'False').lower() == 'true':
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
@@ -299,6 +299,8 @@ if not DEBUG:
         'CacheControl': 'max-age=86400',
     }
     AWS_DEFAULT_ACL = 'private'
+else:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Application-specific settings
 LAND_CONTRACT_SETTINGS = {
