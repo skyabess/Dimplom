@@ -189,7 +189,7 @@ class LandPlotListView(generics.ListCreateAPIView):
             except Exception as e:
                 logger.error(f"Geospatial filter error: {str(e)}")
         
-        return queryset
+        return queryset.order_by('-created_at')
     
     @swagger_auto_schema(
         operation_description="List land plots with filters",
