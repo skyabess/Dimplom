@@ -83,7 +83,11 @@ SECURE_X_FRAME_OPTIONS = 'DENY'
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # CORS
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default=Csv(), cast=Csv)
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost,http://127.0.0.1,http://localhost:3000,http://127.0.0.1:3000',
+    cast=Csv(),
+)
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_METHODS = [
     'DELETE',
