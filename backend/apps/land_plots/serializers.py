@@ -137,7 +137,7 @@ class LandPlotDocumentSerializer(serializers.ModelSerializer):
             'file_size_display', 'file_hash', 'description', 'is_verified',
             'uploaded_by', 'uploaded_by_name', 'uploaded_at'
         ]
-        read_only_fields = ['id', 'file_size', 'file_hash', 'uploaded_at']
+        read_only_fields = ['id', 'file_name', 'file_size', 'file_hash', 'uploaded_at']
     
     def get_file_size_display(self, obj):
         """Return human-readable file size."""

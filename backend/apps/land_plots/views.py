@@ -479,13 +479,14 @@ class LandPlotDocumentListView(generics.ListCreateAPIView):
         
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        uploaded_file = serializer.validated_data.get('file')
         
         with transaction.atomic():
             document = serializer.save(
                 land_plot=land_plot,
                 uploaded_by=request.user,
-                file_size=request.FILES['file'].size,
-                file_name=request.FILES['file'].name
+                file_size=uploaded_file.size if uploaded_file else 0,
+                file_name=uploaded_file.name if uploaded_file else ''
             )
             
             # Calculate file hash

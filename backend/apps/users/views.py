@@ -45,7 +45,7 @@ class UserRegistrationView(generics.CreateAPIView):
             user = serializer.save()
             
             # Create user profile
-            UserProfile.objects.create(user=user)
+            UserProfile.objects.get_or_create(user=user)
             UserRole.objects.get_or_create(user=user, role='realtor')
             
             # Log activity
