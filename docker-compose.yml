@@ -1,14 +1,12 @@
-version: '3.8'
-
 services:
   # PostgreSQL database with PostGIS extension
   db:
     image: postgis/postgis:15-3.3
     container_name: land_contract_db
     environment:
-      POSTGRES_DB: land_contract_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${DB_NAME:-land_contract_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -17,7 +15,7 @@ services:
     networks:
       - land_contract_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "PGPASSWORD=$${POSTGRES_PASSWORD} pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,10 +47,10 @@ services:
       - ALLOWED_HOSTS=*
       - SECRET_KEY=django-insecure-super-secret-key-20260223-landdeal
       - DB_HOST=db
-      - DB_NAME=land_contract_db
-      - DB_USER=postgres
-      - DB_PASSWORD=password
-      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-land_contract_db}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_PORT=${DB_PORT:-5432}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1

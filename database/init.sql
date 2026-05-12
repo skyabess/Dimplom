@@ -54,31 +54,8 @@ $$ LANGUAGE plpgsql;
 --     BEFORE INSERT OR UPDATE ON land_plots
 --     FOR EACH ROW EXECUTE FUNCTION update_land_plot_centroid();
 
--- Create view for land plot statistics
-CREATE OR REPLACE VIEW land_plot_statistics AS
-SELECT 
-    r.name as region_name,
-    COUNT(lp.id) as total_plots,
-    SUM(lp.area) as total_area,
-    AVG(lp.area) as average_area,
-    COUNT(CASE WHEN lp.is_verified = true THEN 1 END) as verified_plots,
-    COUNT(CASE WHEN lp.is_active = true THEN 1 END) as active_plots
-FROM land_plots lp
-JOIN regions r ON lp.region_id = r.id
-GROUP BY r.id, r.name;
-
--- Create view for contract statistics
-CREATE OR REPLACE VIEW contract_statistics AS
-SELECT 
-    DATE_TRUNC('month', c.created_at) as month,
-    COUNT(c.id) as total_contracts,
-    COUNT(CASE WHEN c.status = 'signed' THEN 1 END) as signed_contracts,
-    COUNT(CASE WHEN c.status = 'pending' THEN 1 END) as pending_contracts,
-    COUNT(CASE WHEN c.status = 'cancelled' THEN 1 END) as cancelled_contracts,
-    AVG(c.total_amount) as average_amount
-FROM contracts c
-GROUP BY DATE_TRUNC('month', c.created_at)
-ORDER BY month DESC;
+-- Statistics views depend on Django tables and must be created after migrations.
+-- Keep them out of docker-entrypoint init because init.sql runs before Django creates tables.
 
 -- Create function to validate cadastral number format
 CREATE OR REPLACE FUNCTION is_valid_cadastral_number(cadastral_number varchar)
@@ -122,23 +99,30 @@ $$ LANGUAGE plpgsql;
 -- CREATE INDEX idx_contracts_created_at ON contracts(created_at);
 -- CREATE INDEX idx_contract_documents_contract ON contract_documents(contract_id);
 
--- Create user-defined types for contract statuses
-CREATE TYPE contract_status_enum AS ENUM (
-    'draft',
-    'pending_signature',
-    'signed',
-    'registered',
-    'cancelled',
-    'expired'
-);
+-- Create user-defined types if they do not exist.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'contract_status_enum') THEN
+        CREATE TYPE contract_status_enum AS ENUM (
+            'draft',
+            'pending_signature',
+            'signed',
+            'registered',
+            'cancelled',
+            'expired'
+        );
+    END IF;
 
--- Create user-defined types for land ownership types
-CREATE TYPE ownership_type_enum AS ENUM (
-    'state',
-    'municipal',
-    'private',
-    'shared'
-);
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ownership_type_enum') THEN
+        CREATE TYPE ownership_type_enum AS ENUM (
+            'state',
+            'municipal',
+            'private',
+            'shared'
+        );
+    END IF;
+END
+$$;
 
 -- Grant permissions to the database user
 -- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;
