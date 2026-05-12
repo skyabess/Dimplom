@@ -12,6 +12,7 @@ import {
   TaskPriority,
   WorkspaceSnapshot,
 } from '../types/contract';
+import { createRandomId } from '../utils/id';
 import { contractStatusMeta } from '../utils/status';
 
 const API_BASE_URL =
@@ -20,6 +21,13 @@ const API_BASE_URL =
 const ACCESS_TOKEN_KEY = 'land-contracts.accessToken';
 const REFRESH_TOKEN_KEY = 'land-contracts.refreshToken';
 const USER_KEY = 'land-contracts.user';
+
+const clearStoredAuth = () => {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem('access_token');
+};
 
 interface PaginatedResponse<T> {
   results?: T[];
@@ -44,8 +52,39 @@ export class ApiError extends Error {
 const isRecord = (value: unknown): value is Record<string, any> =>
   typeof value === 'object' && value !== null;
 
-export const getAccessToken = () =>
-  localStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem('access_token');
+const isExpiredToken = (token: string) => {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) {
+      return true;
+    }
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      '=',
+    );
+    const parsedPayload = JSON.parse(window.atob(paddedPayload));
+    return typeof parsedPayload.exp === 'number' && parsedPayload.exp * 1000 <= Date.now() + 5000;
+  } catch {
+    return true;
+  }
+};
+
+export const getAccessToken = () => {
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  if (!token) {
+    localStorage.removeItem('access_token');
+    return null;
+  }
+
+  if (isExpiredToken(token)) {
+    clearStoredAuth();
+    return null;
+  }
+
+  return token;
+};
 
 const setAuthSession = (response: AuthResponse) => {
   localStorage.setItem(ACCESS_TOKEN_KEY, response.access);
@@ -54,10 +93,7 @@ const setAuthSession = (response: AuthResponse) => {
 };
 
 export const clearAuthSession = () => {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-  localStorage.removeItem('access_token');
+  clearStoredAuth();
 };
 
 export const getStoredUser = (): AuthUser | undefined => {
@@ -131,7 +167,7 @@ const toNumber = (value: unknown, fallback = 0) => {
 };
 
 const normalizeLandPlot = (raw: Record<string, any>): LandPlotSummary => ({
-  id: String(raw.id || raw.cadastral_number || crypto.randomUUID()),
+  id: String(raw.id || raw.cadastral_number || createRandomId()),
   cadastral_number: String(raw.cadastral_number || raw.cadastralNumber || 'Не указан'),
   region_name: String(raw.region_name || raw.regionName || raw.region || 'Регион не указан'),
   district_name: raw.district_name,
@@ -150,12 +186,15 @@ const normalizeLandPlot = (raw: Record<string, any>): LandPlotSummary => ({
 });
 
 const normalizeDocument = (raw: Record<string, any>): DocumentItem => ({
-  id: String(raw.id || crypto.randomUUID()),
-  title: String(raw.title || raw.file_name || 'Документ'),
+  id: String(raw.id || createRandomId()),
+  title: String(raw.title || raw.description || raw.file_name || 'Документ'),
   contractId: raw.contract ? String(raw.contract) : undefined,
   landPlotId: raw.land_plot ? String(raw.land_plot) : undefined,
   documentType:
-    raw.document_type === 'registration'
+    raw.document_type === 'registration' ||
+    raw.document_type === 'cadastral_passport' ||
+    raw.document_type === 'ownership_certificate' ||
+    raw.document_type === 'survey_plan'
       ? 'egrn'
       : raw.document_type === 'payment_proof'
         ? 'payment'
@@ -177,7 +216,7 @@ const normalizeTaskPriority = (value: unknown): TaskPriority => {
 };
 
 const normalizeTask = (raw: Record<string, any>): TaskItem => ({
-  id: String(raw.id || crypto.randomUUID()),
+  id: String(raw.id || createRandomId()),
   title: String(raw.title || 'Задача'),
   contractId: raw.contract ? String(raw.contract) : undefined,
   dueDate: raw.due_date || raw.dueDate || new Date().toISOString().slice(0, 10),
@@ -201,7 +240,7 @@ const normalizeContract = (
   const additionalFees = toNumber(raw.additional_fees);
 
   return {
-    id: String(raw.id || crypto.randomUUID()),
+    id: String(raw.id || createRandomId()),
     number: String(raw.number || raw.contract_number || `DK-${String(raw.id || '').slice(0, 8)}`),
     title: String(raw.title || 'Договор без названия'),
     description: String(raw.description || ''),
@@ -284,7 +323,16 @@ const documentTypeMap: Record<DocumentItem['documentType'], string> = {
   other: 'other',
 };
 
+const landPlotDocumentTypeMap: Record<DocumentItem['documentType'], string> = {
+  contract: 'other',
+  egrn: 'cadastral_passport',
+  payment: 'other',
+  identity: 'ownership_certificate',
+  other: 'other',
+};
+
 export const login = async (draft: LoginDraft) => {
+  clearStoredAuth();
   const response = await requestJson<AuthResponse>('/auth/login/', {
     method: 'POST',
     body: JSON.stringify({
@@ -297,6 +345,7 @@ export const login = async (draft: LoginDraft) => {
 };
 
 export const register = async (draft: RegisterDraft) => {
+  clearStoredAuth();
   const response = await requestJson<AuthResponse>('/auth/register/', {
     method: 'POST',
     body: JSON.stringify({
@@ -354,7 +403,7 @@ export const loadApiSnapshot = async (): Promise<Partial<WorkspaceSnapshot>> => 
   );
 
   const contracts = detailRows.map((contract) => normalizeContract(contract, landPlots));
-  const documents = detailRows.flatMap((contract) =>
+  const contractDocuments = detailRows.flatMap((contract) =>
     Array.isArray(contract.documents)
       ? contract.documents.filter(isRecord).map((document) => ({
           ...normalizeDocument(document),
@@ -362,6 +411,26 @@ export const loadApiSnapshot = async (): Promise<Partial<WorkspaceSnapshot>> => 
         }))
       : [],
   );
+  const landPlotDocumentGroups = await Promise.all(
+    landPlots.map((plot) =>
+      requestJson<Record<string, any>[] | PaginatedResponse<Record<string, any>>>(
+        `/land-plots/plots/${plot.id}/documents/`,
+      )
+        .then((payload) =>
+          normalizeList(payload)
+            .filter(isRecord)
+            .map((document) => ({
+              ...normalizeDocument(document),
+              landPlotId: plot.id,
+            })),
+        )
+        .catch(() => []),
+    ),
+  );
+  const documents = [
+    ...contractDocuments,
+    ...landPlotDocumentGroups.flat(),
+  ];
   const tasks = normalizeList(taskPayloadResponse)
     .filter(isRecord)
     .map(normalizeTask);
@@ -476,7 +545,35 @@ export const uploadContractDocument = async (draft: DocumentDraft) => {
     body,
   });
 
-  return normalizeDocument(raw);
+  return {
+    ...normalizeDocument(raw),
+    contractId: draft.contractId,
+  };
+};
+
+export const uploadLandPlotDocument = async (draft: DocumentDraft) => {
+  if (!draft.landPlotId || !draft.file) {
+    throw new ApiError(400, 'Для загрузки документа нужен участок и файл.');
+  }
+
+  const body = new FormData();
+  body.append('document_type', landPlotDocumentTypeMap[draft.documentType]);
+  body.append('description', draft.title);
+  body.append('file', draft.file);
+
+  const raw = await requestJson<Record<string, any>>(
+    `/land-plots/plots/${draft.landPlotId}/documents/`,
+    {
+      method: 'POST',
+      body,
+    },
+  );
+
+  return {
+    ...normalizeDocument(raw),
+    title: draft.title,
+    landPlotId: draft.landPlotId,
+  };
 };
 
 export const approveContractDocument = async (document: DocumentItem) => {

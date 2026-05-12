@@ -44,6 +44,7 @@ services:
     container_name: land_contract_backend
     environment:
       - DEBUG=False
+      - DJANGO_SETTINGS_MODULE=core.settings.production
       - ALLOWED_HOSTS=*
       - SECRET_KEY=django-insecure-super-secret-key-20260223-landdeal
       - DB_HOST=db
@@ -63,6 +64,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=dummy
       - AWS_STORAGE_BUCKET_NAME=dummy
       - AWS_S3_REGION_NAME=eu-central-1
+      - USE_S3_STORAGE=False
     volumes:
       - ./backend:/app
       - media_files:/app/media
@@ -93,6 +95,9 @@ services:
     container_name: land_contract_frontend
     ports:
       - "3000:80"
+    volumes:
+      - static_files:/var/www/static:ro
+      - media_files:/var/www/media:ro
     depends_on:
       - backend
     networks:

@@ -43,16 +43,20 @@ class ContractService:
         else:
             signature_type = 'witness'
 
-        return ContractSignature.objects.create(
+        signature, _ = ContractSignature.objects.update_or_create(
             contract=contract,
             signer=user,
             signature_type=signature_type,
-            certificate_data={},
-            signature_data=signature_data,
-            ip_address=ip_address or '127.0.0.1',
-            user_agent=user_agent or '',
-            validated_at=timezone.now(),
+            defaults={
+                'certificate_data': {},
+                'signature_data': signature_data or '',
+                'ip_address': ip_address or '127.0.0.1',
+                'user_agent': user_agent or '',
+                'is_valid': True,
+                'validated_at': timezone.now(),
+            },
         )
+        return signature
 
     def get_contract_history(self, contract):
         events = [

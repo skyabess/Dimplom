@@ -12,6 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import logging
+import uuid
 
 from .models import User, UserProfile, UserRole, UserSession, UserActivityLog
 from .serializers import (
@@ -44,7 +45,7 @@ class UserRegistrationView(generics.CreateAPIView):
             user = serializer.save()
             
             # Create user profile
-            UserProfile.objects.create(user=user)
+            UserProfile.objects.get_or_create(user=user)
             UserRole.objects.get_or_create(user=user, role='realtor')
             
             # Log activity
@@ -92,13 +93,18 @@ class UserLoginView(generics.GenericAPIView):
         if not request.session.session_key:
             request.session.create()
         
-        # Create user session
-        session = UserSession.objects.create(
-            user=user,
-            session_key=request.session.session_key,
-            ip_address=self.get_client_ip(request),
-            user_agent=request.META.get('HTTP_USER_AGENT', ''),
-            expires_at=timezone.now() + timezone.timedelta(days=30)
+        # Reuse the browser session row on repeated logins instead of violating
+        # the unique session_key constraint.
+        session_key = request.session.session_key or uuid.uuid4().hex
+        session, _ = UserSession.objects.update_or_create(
+            session_key=session_key,
+            defaults={
+                'user': user,
+                'ip_address': self.get_client_ip(request),
+                'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+                'is_active': True,
+                'expires_at': timezone.now() + timezone.timedelta(days=30),
+            }
         )
         
         # Log activity

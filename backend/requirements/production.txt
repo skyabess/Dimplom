@@ -12,6 +12,7 @@ django-celery-results==2.5.1
 
 # Database
 psycopg2-binary==2.9.7
+django-redis==5.4.0
 hiredis==2.2.3
 
 # Authentication & Security
