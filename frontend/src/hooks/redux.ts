@@ -1,4 +1,5 @@
-import { useDispatch, useSelector, TypedUseSelectorHook } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
-export const useAppDispatch = () => useDispatch();
-export const useAppSelector: TypedUseSelectorHook<any> = useSelector;
+export const useAppDispatch: any = () => useDispatch();
+export const useAppSelector: any = useSelector;
+export const showNotification = () => {};
