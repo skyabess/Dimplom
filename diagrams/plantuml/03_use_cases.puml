@@ -1,0 +1,90 @@
+@startuml
+title Диаграмма прецедентов\nАвтоматизированная система управления сделками с земельными участками
+
+left to right direction
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+actor "Пользователь" as User
+actor "Администратор" as Admin
+actor "Администратор компании" as CompanyAdmin
+actor "Риелтор" as Realtor
+actor "Юрист" as Lawyer
+actor "Нотариус" as Notary
+actor "Контрагент" as Client
+
+User <|-- Admin
+User <|-- CompanyAdmin
+User <|-- Realtor
+User <|-- Lawyer
+User <|-- Notary
+User <|-- Client
+
+rectangle "Система управления сделками\nкупли-продажи земельных участков" {
+  usecase "Регистрация" as UC_Register
+  usecase "Вход в систему" as UC_Login
+  usecase "Просмотр профиля\nи ролей" as UC_Profile
+
+  usecase "Управление пользователями\nи ролями" as UC_Roles
+  usecase "Просмотр журнала\nдействий" as UC_Audit
+
+  usecase "Создание и проверка\nземельного участка" as UC_Plot
+  usecase "Загрузка документов\nпо участку" as UC_PlotDoc
+  usecase "Поиск участка\nпо кадастровым данным" as UC_SearchPlot
+
+  usecase "Создание договора" as UC_CreateContract
+  usecase "Редактирование условий\nи статуса договора" as UC_UpdateContract
+  usecase "Создание рабочих задач" as UC_Task
+  usecase "Загрузка документов\nпо договору" as UC_ContractDoc
+  usecase "Согласование документов" as UC_ApproveDoc
+  usecase "Подписание договора" as UC_Sign
+
+  usecase "Просмотр списка сделок\nи карточки договора" as UC_ViewDeals
+  usecase "Формирование отчетов\nи дашбордов" as UC_Report
+}
+
+User --> UC_Login
+User --> UC_Profile
+User --> UC_ViewDeals
+User --> UC_Register
+
+Admin --> UC_Roles
+Admin --> UC_Audit
+Admin --> UC_Report
+CompanyAdmin --> UC_Roles
+CompanyAdmin --> UC_Report
+
+Realtor --> UC_Plot
+Realtor --> UC_SearchPlot
+Realtor --> UC_PlotDoc
+Realtor --> UC_CreateContract
+Realtor --> UC_UpdateContract
+Realtor --> UC_Task
+Realtor --> UC_ContractDoc
+
+Lawyer --> UC_UpdateContract
+Lawyer --> UC_ApproveDoc
+Lawyer --> UC_ContractDoc
+Lawyer --> UC_Sign
+
+Notary --> UC_Sign
+Notary --> UC_ApproveDoc
+
+Client --> UC_ViewDeals
+Client --> UC_ContractDoc
+Client --> UC_Sign
+
+UC_CreateContract .> UC_Plot : <<include>>
+UC_CreateContract .> UC_SearchPlot : <<include>>
+UC_UpdateContract .> UC_Task : <<extend>>
+UC_ApproveDoc .> UC_ContractDoc : <<include>>
+UC_Sign .> UC_ApproveDoc : <<extend>>
+UC_Report .> UC_ViewDeals : <<include>>
+
+legend bottom
+  Прецеденты соответствуют процессам A1-A6:
+  A1 - авторизация и роли; A2 - участки; A3-A5 - договоры, документы, подпись; A6 - отчеты.
+endlegend
+@enduml

@@ -32,11 +32,11 @@ for option_name, env_name in (
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+        'NAME': os.environ.get('DB_NAME') or config('DB_NAME'),
+        'USER': os.environ.get('DB_USER') or config('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD') or config('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST') or config('DB_HOST', default='localhost'),
+        'PORT': os.environ.get('DB_PORT') or config('DB_PORT', default='5432'),
         'OPTIONS': DATABASE_OPTIONS,
         'CONN_MAX_AGE': 60,
     }

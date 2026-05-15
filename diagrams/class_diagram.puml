@@ -1,0 +1,291 @@
+@startuml
+title Диаграмма классов информационной системы
+
+top to bottom direction
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide circle
+
+package "Пользователи" {
+  class User {
+    +id: UUID
+    +email: str
+    +username: str
+    +first_name: str
+    +last_name: str
+    +phone: str
+    +is_verified: bool
+    +company_name: str
+    +company_inn: str
+    +has_digital_signature: bool
+    +created_at: datetime
+    --
+    +full_name(): str
+    +is_certificate_valid(): bool
+  }
+
+  class UserProfile {
+    +id: int
+    +user_id: UUID
+    +address: text
+    +city: str
+    +region: str
+    +email_notifications: bool
+    +passport_scan: file
+    +inn_scan: file
+  }
+
+  class UserRole {
+    +id: int
+    +user_id: UUID
+    +role: str
+    +assigned_by_id: UUID
+    +assigned_at: datetime
+    +expires_at: datetime
+    +is_active: bool
+  }
+
+  class UserActivityLog {
+    +id: int
+    +user_id: UUID
+    +action: str
+    +object_type: str
+    +object_id: str
+    +description: text
+    +ip_address: str
+    +timestamp: datetime
+  }
+}
+
+package "Земельные участки" {
+  class Region {
+    +id: int
+    +name: str
+    +code: str
+    +okato_code: str
+    +is_active: bool
+  }
+
+  class District {
+    +id: int
+    +region_id: int
+    +name: str
+    +code: str
+    +is_active: bool
+  }
+
+  class Settlement {
+    +id: int
+    +district_id: int
+    +name: str
+    +type: str
+    +is_active: bool
+  }
+
+  class LandCategory {
+    +id: int
+    +name: str
+    +code: str
+    +description: text
+    +is_active: bool
+  }
+
+  class LandPurpose {
+    +id: int
+    +name: str
+    +code: str
+    +description: text
+    +is_active: bool
+  }
+
+  class LandPlot {
+    +id: UUID
+    +cadastral_number: str
+    +address: text
+    +area: decimal
+    +geometry: polygon
+    +centroid: point
+    +ownership_type: str
+    +is_verified: bool
+    +is_active: bool
+    +created_at: datetime
+    --
+    +area_hectares(): decimal
+    +full_address(): str
+  }
+
+  class LandPlotOwner {
+    +id: int
+    +land_plot_id: UUID
+    +owner_id: UUID
+    +ownership_share: decimal
+    +ownership_type: str
+    +is_primary_owner: bool
+    +ownership_document_number: str
+  }
+
+  class LandPlotDocument {
+    +id: int
+    +land_plot_id: UUID
+    +document_type: str
+    +document_number: str
+    +document_date: date
+    +file_name: str
+    +file_hash: str
+    +is_verified: bool
+  }
+
+  class LandPlotEncumbrance {
+    +id: int
+    +land_plot_id: UUID
+    +encumbrance_type: str
+    +description: text
+    +registration_number: str
+    +start_date: date
+    +end_date: date
+    +is_active: bool
+  }
+
+  class LandPlotValuation {
+    +id: int
+    +land_plot_id: UUID
+    +valuation_type: str
+    +value: decimal
+    +valuation_date: date
+    +valuator: str
+    +valuation_report_number: str
+  }
+}
+
+package "Договоры" {
+  class Contract {
+    +id: UUID
+    +title: str
+    +description: text
+    +seller_id: UUID
+    +buyer_id: UUID
+    +land_plot_id: UUID
+    +price: decimal
+    +currency: str
+    +additional_fees: decimal
+    +start_date: date
+    +end_date: date
+    +signing_date: date
+    +status: str
+    +payment_terms: text
+    +special_conditions: text
+    --
+    +total_amount(): decimal
+    +is_active(): bool
+    +can_be_signed(): bool
+    +days_until_expiry(): int
+  }
+
+  class ContractStage {
+    +id: int
+    +contract_id: UUID
+    +name: str
+    +description: text
+    +order: int
+    +is_completed: bool
+    +completed_at: datetime
+  }
+
+  class ContractDocument {
+    +id: UUID
+    +contract_id: UUID
+    +title: str
+    +document_type: str
+    +file: file
+    +file_size: int
+    +mime_type: str
+    +is_required: bool
+    +is_signed: bool
+    --
+    +file_extension(): str
+    +is_pdf(): bool
+  }
+
+  class ContractSignature {
+    +id: UUID
+    +contract_id: UUID
+    +signer_id: UUID
+    +signature_type: str
+    +certificate_data: json
+    +signature_data: text
+    +ip_address: str
+    +user_agent: text
+    +is_valid: bool
+    +validated_at: datetime
+  }
+
+  class ContractTemplate {
+    +id: UUID
+    +name: str
+    +description: text
+    +template_type: str
+    +content: text
+    +variables: json
+    +is_active: bool
+    +created_by_id: UUID
+  }
+
+  class ContractComment {
+    +id: UUID
+    +contract_id: UUID
+    +author_id: UUID
+    +content: text
+    +is_internal: bool
+    +parent_id: UUID
+  }
+
+  class ContractTask {
+    +id: UUID
+    +contract_id: UUID
+    +title: str
+    +due_date: date
+    +assignee: str
+    +priority: str
+    +is_completed: bool
+    +created_by_id: UUID
+  }
+}
+
+User "1" -- "0..1" UserProfile
+User "1" -- "0..*" UserRole
+User "1" -- "0..*" UserActivityLog
+User "1" -- "0..*" LandPlot : creates
+User "1" -- "0..*" LandPlotOwner : owns
+
+Region "1" -- "0..*" District
+District "1" -- "0..*" Settlement
+Region "1" -- "0..*" LandPlot
+District "1" -- "0..*" LandPlot
+Settlement "1" -- "0..*" LandPlot
+LandCategory "1" -- "0..*" LandPlot
+LandPurpose "1" -- "0..*" LandPlot
+
+LandPlot "1" *-- "0..*" LandPlotOwner
+LandPlot "1" *-- "0..*" LandPlotDocument
+LandPlot "1" *-- "0..*" LandPlotEncumbrance
+LandPlot "1" *-- "0..*" LandPlotValuation
+LandPlot "1" -- "0..*" Contract
+
+User "1" -- "0..*" Contract : seller
+User "1" -- "0..*" Contract : buyer
+Contract "1" *-- "0..*" ContractStage
+Contract "1" *-- "0..*" ContractDocument
+Contract "1" *-- "0..*" ContractSignature
+Contract "1" *-- "0..*" ContractComment
+Contract "1" *-- "0..*" ContractTask
+
+User "1" -- "0..*" ContractSignature : signer
+User "1" -- "0..*" ContractTemplate : creates
+User "1" -- "0..*" ContractComment : author
+User "1" -- "0..*" ContractTask : creates
+ContractComment "0..1" -- "0..*" ContractComment : replies
+
+@enduml

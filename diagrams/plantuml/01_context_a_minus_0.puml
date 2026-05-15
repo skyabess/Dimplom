@@ -1,0 +1,66 @@
+@startuml
+title Контекстная диаграмма A-0\nАвтоматизированная система управления сделками купли-продажи земельных участков
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BorderColor #222222
+  BackgroundColor #FFFFFF
+  FontColor #111111
+}
+
+left to right direction
+
+rectangle "Управление сделками\nкупли-продажи\nземельных участков\n\nA0" as System #FFFFFF
+
+rectangle "Сведения о\nземельном участке" as InPlot #F8F8F8
+rectangle "Данные сторон и\nпредставителей" as InParties #F8F8F8
+rectangle "Шаблоны договоров\nи типовые документы" as InTemplates #F8F8F8
+rectangle "Параметры сделки:\nцена, сроки, условия" as InParams #F8F8F8
+
+rectangle "218-ФЗ,\nГК РФ,\nЗК РФ" as CtrlLaw #EEF5FF
+rectangle "Регламенты компании" as CtrlRules #EEF5FF
+rectangle "Политики безопасности\nи разграничения доступа" as CtrlSecurity #EEF5FF
+rectangle "SLA и требования\nк отчетности" as CtrlSla #EEF5FF
+
+rectangle "Администратор" as MechAdmin #F7F1FF
+rectangle "Юрист" as MechLawyer #F7F1FF
+rectangle "Риелтор" as MechRealtor #F7F1FF
+rectangle "Контрагент" as MechClient #F7F1FF
+rectangle "Веб-интерфейс\nReact" as MechUi #F7F1FF
+rectangle "Backend API\nDjango REST" as MechApi #F7F1FF
+
+rectangle "Список сделок\nи статусы" as OutDeals #F5FFF5
+rectangle "Сформированные\nдоговоры и документы" as OutDocs #F5FFF5
+rectangle "Подписанные сделки\nи история действий" as OutSigned #F5FFF5
+rectangle "Отчеты и дашборды" as OutReports #F5FFF5
+
+InPlot --> System
+InParties --> System
+InTemplates --> System
+InParams --> System
+
+CtrlLaw -down-> System
+CtrlRules -down-> System
+CtrlSecurity -down-> System
+CtrlSla -down-> System
+
+MechAdmin -up-> System
+MechLawyer -up-> System
+MechRealtor -up-> System
+MechClient -up-> System
+MechUi -up-> System
+MechApi -up-> System
+
+System --> OutDeals
+System --> OutDocs
+System --> OutSigned
+System --> OutReports
+
+legend bottom
+  IDEF0: слева - входы, сверху - управление,
+  снизу - механизмы, справа - выходы.
+endlegend
+@enduml

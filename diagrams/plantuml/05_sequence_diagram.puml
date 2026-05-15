@@ -1,0 +1,83 @@
+@startuml
+title Диаграмма последовательности\nСоздание, документирование и подписание сделки
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor "Риелтор" as Realtor
+actor "Юрист" as Lawyer
+actor "Контрагент" as Client
+
+participant "React UI\nDashboardApp" as UI
+participant "API Client\nservices/api.ts" as ApiClient
+participant "Auth API\nDjango REST" as AuthApi
+participant "LandPlot API" as PlotApi
+participant "Contract API" as ContractApi
+participant "ContractService" as ContractService
+database "PostgreSQL/PostGIS" as DB
+collections "Media Storage" as Media
+
+Realtor -> UI : Ввод email и пароля
+UI -> ApiClient : login(credentials)
+ApiClient -> AuthApi : POST /api/auth/login/
+AuthApi -> DB : Проверить пользователя и роли
+DB --> AuthApi : User, UserRole
+AuthApi --> ApiClient : JWT access/refresh, profile
+ApiClient --> UI : Сохранить сессию
+
+Realtor -> UI : Создать/импортировать участок
+UI -> ApiClient : createLandPlot(draft)
+ApiClient -> PlotApi : POST /api/land-plots/plots/
+PlotApi -> DB : Создать LandPlot,\nRegion/District/Category/Purpose
+DB --> PlotApi : Карточка участка
+PlotApi --> ApiClient : LandPlotSummary
+ApiClient --> UI : Обновить список участков
+
+Realtor -> UI : Создать договор
+UI -> ApiClient : createContract(draft)
+ApiClient -> ContractApi : POST /api/contracts/
+ContractApi -> DB : Найти участок,\nсоздать стороны сделки
+ContractApi -> DB : Создать Contract(status=draft)
+DB --> ContractApi : Contract
+ContractApi --> ApiClient : Contract DTO
+ApiClient --> UI : Показать договор в списке
+
+Realtor -> UI : Загрузить документ договора
+UI -> ApiClient : uploadContractDocument(file)
+ApiClient -> ContractApi : POST /api/contracts/{id}/documents/
+ContractApi -> Media : Сохранить файл
+ContractApi -> DB : Создать ContractDocument
+DB --> ContractApi : ContractDocument
+ContractApi --> ApiClient : Document DTO
+ApiClient --> UI : Документ в статусе review
+
+Lawyer -> UI : Согласовать документ
+UI -> ApiClient : approveContractDocument(document)
+ApiClient -> ContractApi : PATCH /api/contracts/{id}/documents/{docId}/
+ContractApi -> DB : is_signed = true
+DB --> ContractApi : Обновленный документ
+ContractApi --> ApiClient : Document DTO
+ApiClient --> UI : Статус approved
+
+Client -> UI : Подписать договор
+UI -> ApiClient : signContract(id)
+ApiClient -> ContractApi : POST /api/contracts/{id}/sign/
+ContractApi -> ContractService : sign_contract(contract, user, signature_data)
+ContractService -> DB : Создать ContractSignature
+ContractService -> DB : Обновить Contract(status=signed)
+DB --> ContractService : Подпись и договор
+ContractService --> ContractApi : signature_id
+ContractApi --> ApiClient : Успешное подписание
+ApiClient -> ContractApi : GET /api/contracts/
+ContractApi -> DB : Получить список сделок
+DB --> ContractApi : Contracts
+ContractApi --> ApiClient : Snapshot
+ApiClient --> UI : Обновить дашборд и отчеты
+
+legend bottom
+  Последовательность объединяет прецеденты:
+  вход, ведение участка, создание договора, документы, согласование, подпись и отчетность.
+endlegend
+@enduml

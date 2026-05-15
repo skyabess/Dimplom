@@ -1,0 +1,87 @@
+@startuml
+title Диаграмма прецедентов информационной системы
+
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam packageStyle rectangle
+skinparam usecase {
+  BorderColor black
+  BackgroundColor white
+  ArrowColor black
+}
+skinparam actor {
+  BorderColor black
+  BackgroundColor black
+}
+
+actor "Клиент\n(продавец/покупатель)" as Client
+actor "Риелтор" as Realtor
+actor "Юрист" as Lawyer
+actor "Нотариус /\nответственный сотрудник" as Notary
+actor "Администратор\nкомпании" as CompanyAdmin
+actor "Системный\nадминистратор" as SystemAdmin
+
+rectangle "Информационная система\nавтоматизации договоров\nкупли-продажи земли" {
+  usecase "Авторизация\nв системе" as UC_Login
+  usecase "Просмотр\nличного кабинета" as UC_Dashboard
+  usecase "Управление\nземельными участками" as UC_LandPlots
+  usecase "Регистрация\nконтрагентов" as UC_Counterparties
+  usecase "Создание и\nредактирование договора" as UC_Contract
+  usecase "Формирование\nдоговора по шаблону" as UC_Template
+  usecase "Загрузка\nдокументов" as UC_UploadDocs
+  usecase "Проверка\nдокументов" as UC_CheckDocs
+  usecase "Согласование\nдоговора" as UC_Approval
+  usecase "Фиксация сведений\nо подписании" as UC_SignInfo
+  usecase "Управление\nзадачами" as UC_Tasks
+  usecase "Просмотр списка\nсделок и отчетов" as UC_Reports
+  usecase "Управление\nпользователями и ролями" as UC_Users
+  usecase "Ведение\nсправочников" as UC_Dictionaries
+  usecase "Просмотр журнала\nдействий" as UC_Audit
+}
+
+Client --> UC_Login
+Client --> UC_Dashboard
+Client --> UC_UploadDocs
+Client --> UC_SignInfo
+
+Realtor --> UC_Login
+Realtor --> UC_LandPlots
+Realtor --> UC_Counterparties
+Realtor --> UC_Contract
+Realtor --> UC_UploadDocs
+Realtor --> UC_Tasks
+Realtor --> UC_Reports
+
+Lawyer --> UC_Login
+Lawyer --> UC_CheckDocs
+Lawyer --> UC_Template
+Lawyer --> UC_Approval
+Lawyer --> UC_Contract
+Lawyer --> UC_Reports
+
+Notary --> UC_Login
+Notary --> UC_CheckDocs
+Notary --> UC_SignInfo
+Notary --> UC_Reports
+
+CompanyAdmin --> UC_Login
+CompanyAdmin --> UC_Users
+CompanyAdmin --> UC_Dictionaries
+CompanyAdmin --> UC_Reports
+CompanyAdmin --> UC_Tasks
+
+SystemAdmin --> UC_Login
+SystemAdmin --> UC_Users
+SystemAdmin --> UC_Dictionaries
+SystemAdmin --> UC_Audit
+
+UC_Contract ..> UC_LandPlots : <<include>>
+UC_Contract ..> UC_Counterparties : <<include>>
+UC_Template ..> UC_Contract : <<extend>>
+UC_Approval ..> UC_CheckDocs : <<include>>
+UC_SignInfo ..> UC_Approval : <<extend>>
+UC_Reports ..> UC_Audit : <<include>>
+
+@enduml

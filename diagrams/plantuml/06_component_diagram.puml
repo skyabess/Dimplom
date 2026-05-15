@@ -1,0 +1,78 @@
+@startuml
+title Диаграмма компонентов\nАрхитектура системы управления земельными сделками
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+actor "Пользователь\nбраузера" as User
+
+node "Client" {
+  component "Web Browser" as Browser
+}
+
+node "Frontend container\nnginx + React/Vite build" as Frontend {
+  component "React UI\nDashboardApp" as ReactApp
+  component "Workspace hooks\nuseWorkspaceData" as Hooks
+  component "API Client\nservices/api.ts" as ApiClient
+}
+
+node "Reverse Proxy\nnginx" as ReverseProxy {
+  component "HTTP routing\n/static /media /api" as Routing
+}
+
+node "Backend container\nDjango + Gunicorn" as Backend {
+  component "Users app\nAuth, Profile, Roles" as UsersApp
+  component "Land Plots app\nКадастровые участки" as PlotsApp
+  component "Contracts app\nДоговоры, документы,\nподписи, задачи" as ContractsApp
+  component "ContractService\nподписание и генерация\nдокументов" as ContractService
+  component "DRF serializers\nDTO/валидация" as Serializers
+  component "Permissions\nJWT, роли, доступ" as Permissions
+}
+
+database "PostgreSQL + PostGIS\nland_contract_db" as Postgres
+queue "Redis\ncache/celery broker" as Redis
+folder "Media volume\nзагруженные файлы" as Media
+folder "Static volume\nстатические файлы" as Static
+
+cloud "Внешние регламенты\n218-ФЗ, ГК РФ, ЗК РФ,\nполитики безопасности" as Regulations
+
+User --> Browser : HTTP
+Browser --> Routing : http://host:80/443
+Routing --> ReactApp : HTML/CSS/JS
+ReactApp --> Hooks
+Hooks --> ApiClient
+ApiClient --> Routing : REST /api/*\nBearer JWT
+Routing --> UsersApp : /api/auth/*
+Routing --> PlotsApp : /api/land-plots/*
+Routing --> ContractsApp : /api/contracts/*
+
+UsersApp --> Permissions
+PlotsApp --> Permissions
+ContractsApp --> Permissions
+ContractsApp --> ContractService
+UsersApp --> Serializers
+PlotsApp --> Serializers
+ContractsApp --> Serializers
+
+UsersApp --> Postgres : users, roles,\nsessions, audit
+PlotsApp --> Postgres : land_plots,\nregions, documents
+ContractsApp --> Postgres : contracts,\ndocuments, signatures,\ntasks, comments
+ContractService --> Postgres : status/signature history
+ContractsApp --> Media : contract documents
+PlotsApp --> Media : land plot documents
+Backend --> Redis : cache / async tasks
+Routing --> Static
+Routing --> Media
+
+Regulations ..> Permissions : правила доступа
+Regulations ..> ContractsApp : порядок сделки
+Regulations ..> PlotsApp : кадастровые требования
+
+legend bottom
+  Компоненты связаны с диаграммой классов:
+  Users app управляет User/UserRole, Land Plots app - LandPlot,
+  Contracts app - Contract, ContractDocument, ContractSignature, ContractTask.
+endlegend
+@enduml

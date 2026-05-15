@@ -1,0 +1,99 @@
+@startuml
+title Диаграмма декомпозиции A0\nУправление сделками купли-продажи земельных участков
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam rectangle {
+  BorderColor #222222
+  BackgroundColor #FFFFFF
+}
+
+left to right direction
+
+rectangle "A1\nРегистрация пользователей,\nролей и прав доступа" as A1
+rectangle "A2\nВедение кадастровых\nданных земельных участков" as A2
+rectangle "A3\nПодготовка параметров\nи статуса сделки" as A3
+rectangle "A4\nФормирование и согласование\nдоговора и документов" as A4
+rectangle "A5\nПодписание и сопровождение\nсделки" as A5
+rectangle "A6\nФормирование отчетов\nи дашбордов" as A6
+
+rectangle "Данные пользователя,\nemail, пароль, роль" as UserData #F8F8F8
+rectangle "Сведения о земельном\nучастке и документах ЕГРН" as PlotData #F8F8F8
+rectangle "Данные продавца,\nпокупателя и условий" as DealData #F8F8F8
+rectangle "Файлы договоров,\nприложений и платежей" as Files #F8F8F8
+
+rectangle "218-ФЗ, ГК РФ,\nЗК РФ" as Law #EEF5FF
+rectangle "Регламенты компании" as Rules #EEF5FF
+rectangle "Политики безопасности" as Security #EEF5FF
+rectangle "SLA и отчетность" as Sla #EEF5FF
+
+rectangle "Администратор" as Admin #F7F1FF
+rectangle "Риелтор" as Realtor #F7F1FF
+rectangle "Юрист" as Lawyer #F7F1FF
+rectangle "Контрагент" as Client #F7F1FF
+rectangle "React UI" as Ui #F7F1FF
+rectangle "Django REST API" as Api #F7F1FF
+rectangle "PostgreSQL/PostGIS" as Db #F7F1FF
+
+rectangle "Авторизованный\nпользователь" as AuthUser #F5FFF5
+rectangle "Карточка участка\nс признаком проверки" as PlotCard #F5FFF5
+rectangle "Черновик сделки\nи рабочие задачи" as DealDraft #F5FFF5
+rectangle "Согласованный договор\nи комплект документов" as ContractDocs #F5FFF5
+rectangle "Подписанный договор\nи журнал действий" as SignedDeal #F5FFF5
+rectangle "Список сделок,\nметрики и отчеты" as Reports #F5FFF5
+
+UserData --> A1
+A1 --> AuthUser
+AuthUser --> A2
+PlotData --> A2
+A2 --> PlotCard
+PlotCard --> A3
+DealData --> A3
+A3 --> DealDraft
+DealDraft --> A4
+Files --> A4
+A4 --> ContractDocs
+ContractDocs --> A5
+A5 --> SignedDeal
+SignedDeal --> A6
+A3 --> A6
+A4 --> A6
+A6 --> Reports
+
+Law -down-> A2
+Law -down-> A4
+Rules -down-> A3
+Rules -down-> A5
+Security -down-> A1
+Security -down-> A4
+Sla -down-> A6
+
+Admin -up-> A1
+Admin -up-> A6
+Realtor -up-> A2
+Realtor -up-> A3
+Lawyer -up-> A4
+Lawyer -up-> A5
+Client -up-> A5
+Ui -up-> A1
+Ui -up-> A2
+Ui -up-> A3
+Ui -up-> A4
+Ui -up-> A6
+Api -up-> A1
+Api -up-> A2
+Api -up-> A3
+Api -up-> A4
+Api -up-> A5
+Db -up-> A2
+Db -up-> A3
+Db -up-> A4
+Db -up-> A6
+
+legend bottom
+  Декомпозиция раскрывает функцию A0 из контекстной диаграммы A-0.
+  Выходы A2-A6 используются в UML-диаграммах как основные сценарии и сущности.
+endlegend
+@enduml
