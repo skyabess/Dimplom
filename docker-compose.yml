@@ -4,9 +4,9 @@ services:
     image: postgis/postgis:15-3.3
     container_name: land_contract_db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-land_contract_db}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: land_contract_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -15,7 +15,7 @@ services:
     networks:
       - land_contract_network
     healthcheck:
-      test: ["CMD-SHELL", "PGPASSWORD=$${POSTGRES_PASSWORD} pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "PGPASSWORD=password psql -U postgres -d land_contract_db -c 'SELECT 1' >/dev/null"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,14 +44,14 @@ services:
     container_name: land_contract_backend
     environment:
       - DEBUG=False
-      - DJANGO_SETTINGS_MODULE=core.settings.production
+      - DJANGO_SETTINGS_MODULE=core.settings.base
       - ALLOWED_HOSTS=*
       - SECRET_KEY=django-insecure-super-secret-key-20260223-landdeal
       - DB_HOST=db
-      - DB_NAME=${POSTGRES_DB:-land_contract_db}
-      - DB_USER=${POSTGRES_USER:-postgres}
-      - DB_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=land_contract_db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
@@ -80,7 +80,8 @@ services:
     networks:
       - land_contract_network
     command: >
-      sh -c "python manage.py migrate contenttypes &&
+      sh -c "python -c \"import hashlib, os; password = os.environ.get('DB_PASSWORD', ''); print('DB settings:', {'host': os.environ.get('DB_HOST'), 'name': os.environ.get('DB_NAME'), 'user': os.environ.get('DB_USER'), 'password_sha12': hashlib.sha256(password.encode()).hexdigest()[:12]})\" &&
+             python manage.py migrate contenttypes &&
              python manage.py migrate auth &&
              python manage.py migrate --run-syncdb &&
              python manage.py seed_test_users &&
