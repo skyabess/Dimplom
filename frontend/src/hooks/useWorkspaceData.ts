@@ -23,7 +23,7 @@ import {
   uploadLandPlotDocument,
   verifyLandPlot as verifyLandPlotApi,
 } from '../services/api';
-import {
+import type {
   ApiState,
   AuthUser,
   Contract,
@@ -42,6 +42,7 @@ import {
 import { contractStatusMeta } from '../utils/status';
 
 const STORAGE_KEY = 'land-contracts.workspace.v2';
+const SERVER_STORAGE_KEY = 'land-contracts.workspace.server.v1';
 const DEMO_SNAPSHOT = createDemoSnapshot();
 const DEMO_IDS = {
   contracts: new Set(DEMO_SNAPSHOT.contracts.map((item) => item.id)),
@@ -54,22 +55,31 @@ const todayIsoDate = () => new Date().toISOString().slice(0, 10);
 
 const createId = createClientId;
 
-const readSnapshot = (): WorkspaceSnapshot => {
+const hasDemoContent = (snapshot: WorkspaceSnapshot) =>
+  snapshot.contracts.length > 0 || snapshot.tasks.length > 0;
+
+const readSnapshot = (storageKey = STORAGE_KEY): WorkspaceSnapshot => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey);
     if (stored) {
       return JSON.parse(stored) as WorkspaceSnapshot;
     }
   } catch {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey);
   }
 
   return createDemoSnapshot();
 };
 
-const persistSnapshot = (snapshot: WorkspaceSnapshot) => {
+const readLocalSnapshot = (): WorkspaceSnapshot => {
+  const snapshot = readSnapshot(STORAGE_KEY);
+
+  return hasDemoContent(snapshot) ? snapshot : createDemoSnapshot();
+};
+
+const persistSnapshot = (snapshot: WorkspaceSnapshot, storageKey = STORAGE_KEY) => {
   localStorage.setItem(
-    STORAGE_KEY,
+    storageKey,
     JSON.stringify({
       ...snapshot,
       updatedAt: new Date().toISOString(),
@@ -183,7 +193,7 @@ const updateContractFromDraft = (
 });
 
 export const useWorkspaceData = () => {
-  const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(() => readSnapshot());
+  const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(() => readLocalSnapshot());
   const [authUser, setAuthUser] = useState<AuthUser | undefined>(() => getStoredUser());
   const [apiState, setApiState] = useState<ApiState>({
     status: 'checking',
@@ -245,6 +255,9 @@ export const useWorkspaceData = () => {
     if (error instanceof ApiError && error.status === 401) {
       clearAuthSession();
       setAuthUser(undefined);
+      const localSnapshot = readLocalSnapshot();
+      setSnapshot(localSnapshot);
+      persistSnapshot(localSnapshot, STORAGE_KEY);
       setApiState({
         status: 'unauthorized',
         message: 'Войдите в систему, чтобы синхронизировать данные с сервером.',
@@ -305,7 +318,7 @@ export const useWorkspaceData = () => {
   }, [handleApiError, syncFromApi]);
 
   useEffect(() => {
-    persistSnapshot(snapshot);
+    persistSnapshot(snapshot, getAccessToken() ? SERVER_STORAGE_KEY : STORAGE_KEY);
   }, [snapshot]);
 
   const metrics = useMemo(() => {
@@ -718,7 +731,10 @@ export const useWorkspaceData = () => {
 
   const logout = useCallback(async () => {
     await logoutApi();
+    const localSnapshot = readLocalSnapshot();
     setAuthUser(undefined);
+    setSnapshot(localSnapshot);
+    persistSnapshot(localSnapshot, STORAGE_KEY);
     setApiState({
       status: 'unauthorized',
       message: 'Вы вышли из системы. Данные сохраняются локально.',
