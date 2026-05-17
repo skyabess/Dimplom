@@ -55,8 +55,13 @@ const todayIsoDate = () => new Date().toISOString().slice(0, 10);
 
 const createId = createClientId;
 
-const hasDemoContent = (snapshot: WorkspaceSnapshot) =>
-  snapshot.contracts.length > 0 || snapshot.tasks.length > 0;
+const createEmptySnapshot = (): WorkspaceSnapshot => ({
+  contracts: [],
+  landPlots: [],
+  tasks: [],
+  documents: [],
+  updatedAt: new Date().toISOString(),
+});
 
 const readSnapshot = (storageKey = STORAGE_KEY): WorkspaceSnapshot => {
   try {
@@ -69,12 +74,6 @@ const readSnapshot = (storageKey = STORAGE_KEY): WorkspaceSnapshot => {
   }
 
   return createDemoSnapshot();
-};
-
-const readLocalSnapshot = (): WorkspaceSnapshot => {
-  const snapshot = readSnapshot(STORAGE_KEY);
-
-  return hasDemoContent(snapshot) ? snapshot : createDemoSnapshot();
 };
 
 const persistSnapshot = (snapshot: WorkspaceSnapshot, storageKey = STORAGE_KEY) => {
@@ -97,7 +96,7 @@ const mergeApiItems = <T extends { id: string }>(
   }
 
   if (apiItems.length === 0) {
-    return currentItems.filter((item) => !demoIds.has(item.id));
+    return currentItems;
   }
 
   const apiIds = new Set(apiItems.map((item) => item.id));
@@ -193,7 +192,9 @@ const updateContractFromDraft = (
 });
 
 export const useWorkspaceData = () => {
-  const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(() => readLocalSnapshot());
+  const [snapshot, setSnapshot] = useState<WorkspaceSnapshot>(() =>
+    getAccessToken() ? readSnapshot(SERVER_STORAGE_KEY) : createEmptySnapshot(),
+  );
   const [authUser, setAuthUser] = useState<AuthUser | undefined>(() => getStoredUser());
   const [apiState, setApiState] = useState<ApiState>({
     status: 'checking',
@@ -213,26 +214,27 @@ export const useWorkspaceData = () => {
       Boolean(apiSnapshot.documents?.length);
 
     if (hasApiSnapshot) {
-      setSnapshot((current) => {
+      setSnapshot(() => {
+        const baseSnapshot = createDemoSnapshot();
         const documents = mergeApiItems(
-          current.documents,
+          baseSnapshot.documents,
           apiSnapshot.documents,
           DEMO_IDS.documents,
         );
         const contracts = attachDocumentIds(
-          mergeApiItems(current.contracts, apiSnapshot.contracts, DEMO_IDS.contracts),
+          mergeApiItems(baseSnapshot.contracts, apiSnapshot.contracts, DEMO_IDS.contracts),
           documents,
         );
 
         return {
-          ...current,
+          ...baseSnapshot,
           contracts,
           landPlots: mergeApiItems(
-            current.landPlots,
+            baseSnapshot.landPlots,
             apiSnapshot.landPlots,
             DEMO_IDS.landPlots,
           ),
-          tasks: mergeApiItems(current.tasks, apiSnapshot.tasks, DEMO_IDS.tasks),
+          tasks: mergeApiItems(baseSnapshot.tasks, apiSnapshot.tasks, DEMO_IDS.tasks),
           documents,
           updatedAt: apiSnapshot.updatedAt || new Date().toISOString(),
         };
@@ -241,12 +243,13 @@ export const useWorkspaceData = () => {
         status: 'connected',
         message: hasServerRows
           ? 'Данные загружены из API, локальные изменения сохранены.'
-          : 'API доступен, серверных данных пока нет. Локальные данные сохранены.',
+          : 'API доступен, показан рабочий набор данных для пользователя.',
       });
     } else {
+      setSnapshot(createDemoSnapshot());
       setApiState({
         status: 'connected',
-        message: 'API доступен, но пока без данных. Используется рабочий локальный набор.',
+        message: 'API доступен, показан рабочий набор данных для пользователя.',
       });
     }
   }, []);
@@ -255,9 +258,7 @@ export const useWorkspaceData = () => {
     if (error instanceof ApiError && error.status === 401) {
       clearAuthSession();
       setAuthUser(undefined);
-      const localSnapshot = readLocalSnapshot();
-      setSnapshot(localSnapshot);
-      persistSnapshot(localSnapshot, STORAGE_KEY);
+      setSnapshot(createEmptySnapshot());
       setApiState({
         status: 'unauthorized',
         message: 'Войдите в систему, чтобы синхронизировать данные с сервером.',
@@ -293,6 +294,7 @@ export const useWorkspaceData = () => {
             status: 'unauthorized',
             message: 'Войдите в систему, чтобы синхронизировать данные с сервером.',
           });
+          setSnapshot(createEmptySnapshot());
         }
         return;
       }
@@ -318,7 +320,9 @@ export const useWorkspaceData = () => {
   }, [handleApiError, syncFromApi]);
 
   useEffect(() => {
-    persistSnapshot(snapshot, getAccessToken() ? SERVER_STORAGE_KEY : STORAGE_KEY);
+    if (getAccessToken()) {
+      persistSnapshot(snapshot, SERVER_STORAGE_KEY);
+    }
   }, [snapshot]);
 
   const metrics = useMemo(() => {
@@ -731,13 +735,12 @@ export const useWorkspaceData = () => {
 
   const logout = useCallback(async () => {
     await logoutApi();
-    const localSnapshot = readLocalSnapshot();
     setAuthUser(undefined);
-    setSnapshot(localSnapshot);
-    persistSnapshot(localSnapshot, STORAGE_KEY);
+    localStorage.removeItem(SERVER_STORAGE_KEY);
+    setSnapshot(createEmptySnapshot());
     setApiState({
       status: 'unauthorized',
-      message: 'Вы вышли из системы. Данные сохраняются локально.',
+      message: 'Вы вышли из системы. Войдите, чтобы увидеть рабочие данные.',
     });
   }, []);
 

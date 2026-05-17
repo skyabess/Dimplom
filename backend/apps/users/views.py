@@ -89,41 +89,52 @@ class UserLoginView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         
         user = serializer.validated_data['user']
+        UserProfile.objects.get_or_create(user=user)
 
-        if not request.session.session_key:
-            request.session.create()
-        
-        # Reuse the browser session row on repeated logins instead of violating
-        # the unique session_key constraint.
-        session_key = request.session.session_key or uuid.uuid4().hex
-        session, _ = UserSession.objects.update_or_create(
-            session_key=session_key,
-            defaults={
-                'user': user,
-                'ip_address': self.get_client_ip(request),
-                'user_agent': request.META.get('HTTP_USER_AGENT', ''),
-                'is_active': True,
-                'expires_at': timezone.now() + timezone.timedelta(days=30),
-            }
-        )
-        
-        # Log activity
-        UserActivityLog.objects.create(
-            user=user,
-            action='login',
-            ip_address=self.get_client_ip(request),
-            user_agent=request.META.get('HTTP_USER_AGENT', ''),
-            description=f'Login from session {session.session_key}'
-        )
+        try:
+            UserRole.objects.get_or_create(user=user, role='client')
+        except Exception:
+            logger.exception("Unable to ensure default role for user %s", user.id)
+
+        session = None
+
+        try:
+            session_key = getattr(request.session, 'session_key', None) or uuid.uuid4().hex
+            session, _ = UserSession.objects.update_or_create(
+                session_key=session_key,
+                defaults={
+                    'user': user,
+                    'ip_address': self.get_client_ip(request),
+                    'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+                    'is_active': True,
+                    'expires_at': timezone.now() + timezone.timedelta(days=30),
+                }
+            )
+
+            UserActivityLog.objects.create(
+                user=user,
+                action='login',
+                ip_address=self.get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                description=f'Login from session {session.session_key}'
+            )
+        except Exception:
+            logger.exception("Login audit/session tracking failed for user %s", user.id)
         
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
+
+        try:
+            user_data = UserProfileDetailSerializer(user).data
+        except Exception:
+            logger.exception("Detailed login profile serialization failed for user %s", user.id)
+            user_data = UserProfileSerializer(user).data
         
         return Response({
-            'user': UserProfileDetailSerializer(user).data,
+            'user': user_data,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-            'session_id': session.id
+            'session_id': session.id if session else None
         })
     
     def get_client_ip(self, request):

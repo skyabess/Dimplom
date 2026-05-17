@@ -1,0 +1,125 @@
+@startuml
+title Физическая схема базы данных
+
+top to bottom direction
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+
+skinparam class {
+  BackgroundColor #F3F3F3
+  BorderColor #1B9BD1
+  HeaderBackgroundColor #1B9BD1
+  HeaderFontColor white
+  FontColor #0674A6
+  ArrowColor #1B9BD1
+}
+
+class "пользователи" as users {
+  PK id : UUID
+  --
+  email : varchar
+  username : varchar
+  first_name : varchar
+  last_name : varchar
+  phone : varchar
+  is_verified : boolean
+  created_at : timestamp
+}
+
+class "земельные участки" as land_plots {
+  PK id : UUID
+  --
+  cadastral_number : varchar
+  address : text
+  area : decimal
+  ownership_type : varchar
+  is_verified : boolean
+  FK category_id : int
+  FK purpose_id : int
+}
+
+class "договоры" as contracts {
+  PK id : UUID
+  --
+  title : varchar
+  price : decimal
+  currency : varchar
+  status : varchar
+  start_date : date
+  end_date : date
+  FK seller_id : UUID
+  FK buyer_id : UUID
+  FK land_plot_id : UUID
+}
+
+class "документы договоров" as contract_documents {
+  PK id : UUID
+  --
+  title : varchar
+  document_type : varchar
+  file : varchar
+  file_size : int
+  is_required : boolean
+  is_signed : boolean
+  FK contract_id : UUID
+}
+
+class "сведения о подписании" as contract_signatures {
+  PK id : UUID
+  --
+  signature_type : varchar
+  certificate_data : json
+  signature_data : text
+  ip_address : inet
+  is_valid : boolean
+  FK contract_id : UUID
+  FK signer_id : UUID
+}
+
+class "этапы договора" as contract_stages {
+  PK id : int
+  --
+  name : varchar
+  order : int
+  is_completed : boolean
+  completed_at : timestamp
+  FK contract_id : UUID
+}
+
+class "задачи договора" as contract_tasks {
+  PK id : UUID
+  --
+  title : varchar
+  due_date : date
+  assignee : varchar
+  priority : varchar
+  is_completed : boolean
+  FK contract_id : UUID
+}
+
+class "справочники участков" as land_refs {
+  PK id : int
+  --
+  name : varchar
+  code : varchar
+  type : varchar
+}
+
+users "1" -right- "0..*" contracts : продавец
+users "1" -right- "0..*" contracts : покупатель
+users "1" -down- "0..*" contract_signatures : подписант
+
+land_refs "1" -down- "0..*" land_plots : категория/назначение
+land_plots "1" -right- "0..*" contracts : участок
+
+contracts "1" -down- "0..*" contract_documents : документы
+contracts "1" -down- "0..*" contract_signatures : подписание
+contracts "1" -down- "0..*" contract_stages : этапы
+contracts "1" -down- "0..*" contract_tasks : задачи
+
+@enduml
