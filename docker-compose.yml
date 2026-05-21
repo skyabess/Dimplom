@@ -83,6 +83,7 @@ services:
       sh -c "python -c \"import hashlib, os; password = os.environ.get('DB_PASSWORD', ''); print('DB settings:', {'host': os.environ.get('DB_HOST'), 'name': os.environ.get('DB_NAME'), 'user': os.environ.get('DB_USER'), 'password_sha12': hashlib.sha256(password.encode()).hexdigest()[:12]})\" &&
              python manage.py migrate contenttypes &&
              python manage.py migrate auth &&
+             python manage.py migrate users &&
              python manage.py migrate --run-syncdb &&
              python manage.py seed_test_users &&
              python manage.py collectstatic --noinput &&
