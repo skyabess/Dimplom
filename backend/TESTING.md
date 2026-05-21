@@ -11,23 +11,23 @@
 
 ## Запуск в Docker
 
-Так как в приложениях проекта нет миграций, при запуске тестов нужен `--run-syncdb`.
+Тесты запускаются штатной командой Django `test`. Флаг `--run-syncdb` нужен для `migrate`, но не поддерживается командой `test`.
 
 ```bash
-docker compose exec backend python manage.py test apps.users apps.land_plots apps.contracts --run-syncdb
+docker compose exec backend python manage.py test apps.users apps.land_plots apps.contracts
 ```
 
 Если контейнеры ещё не запущены:
 
 ```bash
 docker compose up -d --build
-docker compose exec backend python manage.py test apps.users apps.land_plots apps.contracts --run-syncdb
+docker compose exec backend python manage.py test apps.users apps.land_plots apps.contracts
 ```
 
 ## Запуск конкретного набора
 
 ```bash
-docker compose exec backend python manage.py test apps.users --run-syncdb
-docker compose exec backend python manage.py test apps.land_plots --run-syncdb
-docker compose exec backend python manage.py test apps.contracts --run-syncdb
+docker compose exec backend python manage.py test apps.users
+docker compose exec backend python manage.py test apps.land_plots
+docker compose exec backend python manage.py test apps.contracts
 ```
