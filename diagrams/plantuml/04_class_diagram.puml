@@ -1,235 +1,94 @@
 @startuml
-title Диаграмма классов\nДоменная модель системы управления сделками
+title Диаграмма классов
 
 skinparam backgroundColor white
 skinparam defaultFontName Arial
-skinparam classAttributeIconSize 0
+skinparam defaultFontSize 16
+skinparam dpi 180
 skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam nodesep 90
+skinparam ranksep 90
+
 hide circle
+hide methods
+hide stereotypes
 
-package "Пользователи и доступ" {
-  class User {
-    +UUID id
-    +String username
-    +String email
-    +String first_name
-    +String last_name
-    +String phone
-    +Boolean is_verified
-    +Boolean has_digital_signature
-    +String full_name
-  }
-
-  class UserProfile {
-    +String address
-    +String city
-    +String region
-    +Boolean email_notifications
-  }
-
-  class UserRole {
-    +String role
-    +DateTime assigned_at
-    +DateTime expires_at
-    +Boolean is_active
-  }
-
-  class UserSession {
-    +String session_key
-    +String ip_address
-    +Boolean is_active
-    +DateTime expires_at
-  }
-
-  class UserActivityLog {
-    +String action
-    +String object_type
-    +String object_id
-    +String description
-    +DateTime timestamp
-  }
+skinparam class {
+  BackgroundColor #D9D9D9
+  BorderColor #4F9ED8
+  HeaderBackgroundColor #4F9ED8
+  HeaderFontColor white
+  FontColor #1F6FA8
+  FontSize 16
+  AttributeFontSize 15
+  BorderThickness 1.5
 }
 
-package "Кадастровый учет участков" {
-  class Region {
-    +String name
-    +String code
-    +String okato_code
-  }
-
-  class District {
-    +String name
-    +String code
-  }
-
-  class Settlement {
-    +String name
-    +String type
-  }
-
-  class LandCategory {
-    +String name
-    +String code
-  }
-
-  class LandPurpose {
-    +String name
-    +String code
-  }
-
-  class LandPlot {
-    +UUID id
-    +String cadastral_number
-    +String address
-    +Decimal area
-    +Polygon geometry
-    +Point centroid
-    +String ownership_type
-    +Boolean is_verified
-    +Boolean is_active
-    +Decimal area_hectares
-    +String full_address
-  }
-
-  class LandPlotOwner {
-    +Decimal ownership_share
-    +String ownership_type
-    +Boolean is_primary_owner
-    +String ownership_document_number
-  }
-
-  class LandPlotDocument {
-    +String document_type
-    +String document_number
-    +String file_name
-    +Integer file_size
-    +String file_hash
-    +Boolean is_verified
-  }
-
-  class LandPlotEncumbrance {
-    +String encumbrance_type
-    +String registration_number
-    +Date start_date
-    +Date end_date
-    +Boolean is_active
-  }
-
-  class LandPlotValuation {
-    +String valuation_type
-    +Decimal value
-    +Date valuation_date
-  }
+class "Риелтор" as Realtor {
+  id
+  --
+  full_name
+  email
+  phone
+  is_active
 }
 
-package "Договоры и сопровождение сделки" {
-  class Contract {
-    +UUID id
-    +String title
-    +String description
-    +Decimal price
-    +String currency
-    +Decimal additional_fees
-    +Date start_date
-    +Date end_date
-    +Date signing_date
-    +String status
-    +String payment_terms
-    +String special_conditions
-    +Decimal total_amount
-    +Boolean can_be_signed
-  }
-
-  class ContractStage {
-    +String name
-    +String description
-    +Integer order
-    +Boolean is_completed
-    +DateTime completed_at
-  }
-
-  class ContractDocument {
-    +UUID id
-    +String title
-    +String document_type
-    +File file
-    +Integer file_size
-    +String mime_type
-    +Boolean is_required
-    +Boolean is_signed
-  }
-
-  class ContractSignature {
-    +UUID id
-    +String signature_type
-    +JSON certificate_data
-    +Text signature_data
-    +String ip_address
-    +Boolean is_valid
-    +DateTime validated_at
-  }
-
-  class ContractTemplate {
-    +UUID id
-    +String name
-    +String template_type
-    +Text content
-    +JSON variables
-    +Boolean is_active
-  }
-
-  class ContractComment {
-    +UUID id
-    +Text content
-    +Boolean is_internal
-  }
-
-  class ContractTask {
-    +UUID id
-    +String title
-    +Date due_date
-    +String assignee
-    +String priority
-    +Boolean is_completed
-  }
+class "Сделка" as Deal {
+  id
+  --
+  title
+  description
+  price
+  status
+  created_by
+  created_at
+  updated_at
 }
 
-User "1" -- "0..1" UserProfile : profile
-User "1" -- "0..*" UserRole : roles
-User "1" -- "0..*" UserSession : sessions
-User "1" -- "0..*" UserActivityLog : activities
-User "1" -- "0..*" ContractTemplate : created_by
+class "Покупатель" as Buyer {
+  id
+  --
+  full_name
+  email
+  phone
+  passport_number
+  inn
+  is_active
+  created_at
+}
 
-Region "1" -- "0..*" District
-District "1" -- "0..*" Settlement
-Region "1" -- "0..*" LandPlot
-District "1" -- "0..*" LandPlot
-Settlement "1" -- "0..*" LandPlot
-LandCategory "1" -- "0..*" LandPlot
-LandPurpose "1" -- "0..*" LandPlot
-User "1" -- "0..*" LandPlot : created_by
-LandPlot "1" -- "0..*" LandPlotOwner
-User "1" -- "0..*" LandPlotOwner : owner
-LandPlot "1" -- "0..*" LandPlotDocument
-User "1" -- "0..*" LandPlotDocument : uploaded_by
-LandPlot "1" -- "0..*" LandPlotEncumbrance
-LandPlot "1" -- "0..*" LandPlotValuation
+class "Продавец" as Seller {
+  id
+  --
+  full_name
+  email
+  phone
+  passport_number
+  inn
+  is_active
+  created_at
+}
 
-User "1" -- "0..*" Contract : seller
-User "1" -- "0..*" Contract : buyer
-LandPlot "1" -- "0..*" Contract
-Contract "1" -- "0..*" ContractStage
-Contract "1" -- "0..*" ContractDocument
-Contract "1" -- "0..*" ContractSignature
-User "1" -- "0..*" ContractSignature : signer
-Contract "1" -- "0..*" ContractComment
-User "1" -- "0..*" ContractComment : author
-ContractComment "0..1" -- "0..*" ContractComment : replies
-Contract "0..1" -- "0..*" ContractTask
-User "1" -- "0..*" ContractTask : created_by
+class "Земля" as Land {
+  id
+  --
+  cadastral_number
+  address_area
+  land_category
+  description
+  created_at
+}
 
-legend bottom
-  Классы соответствуют Django-моделям backend:
-  users, land_plots, contracts.
-endlegend
+Realtor -[hidden]down- Deal
+Buyer -[hidden]right- Deal
+Deal -[hidden]right- Seller
+Seller -[hidden]right- Land
+
+Realtor "1" -[#4F9ED8,thickness=2]-> "0..*" Deal : сопровождает
+Buyer "1" -[#4F9ED8,thickness=2]-> "0..*" Deal : покупатель
+Seller "1" -[#4F9ED8,thickness=2]-> "0..*" Deal : продавец
+Land "1" -[#4F9ED8,thickness=2]-> "0..*" Deal : объект сделки
+
 @enduml
