@@ -1,9 +1,14 @@
+from types import SimpleNamespace
+
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.gis.geos import Polygon
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
 
-from apps.contracts.models import Contract, ContractTask
+from apps.contracts.models import Contract, ContractDocument, ContractTask
+from apps.contracts.views import ContractDocumentViewSet
 from apps.land_plots.models import (
     District,
     LandCategory,
@@ -135,6 +140,26 @@ class ContractApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['count'], 0)
 
+    def test_client_cannot_delete_foreign_contract(self):
+        contract = self.create_contract()
+        other = User.objects.create_user(
+            username='other-delete',
+            email='other-delete@test.local',
+            password='StrongPass123!',
+            first_name='Other',
+            last_name='Client',
+        )
+        UserRole.objects.create(user=other, role='client')
+        self.client.force_authenticate(other)
+
+        response = self.client.delete(f'/api/contracts/{contract.id}/')
+
+        self.assertIn(
+            response.status_code,
+            (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
+        )
+        self.assertTrue(Contract.objects.filter(id=contract.id).exists())
+
     def test_admin_can_create_contract_with_named_parties(self):
         self.client.force_authenticate(self.admin)
 
@@ -180,3 +205,42 @@ class ContractApiTests(APITestCase):
         task = ContractTask.objects.get(title='Check seller documents')
         self.assertEqual(task.created_by, self.admin)
         self.assertEqual(task.contract, contract)
+
+    def test_upload_too_large_contract_document(self):
+        contract = self.create_contract()
+        view = ContractDocumentViewSet()
+        view.kwargs = {'contract_pk': str(contract.id)}
+        uploaded_file = SimpleNamespace(
+            size=100 * 1024 * 1024 + 1,
+            content_type='application/pdf',
+        )
+        serializer = SimpleNamespace(validated_data={'file': uploaded_file})
+
+        with self.assertRaises(ValidationError) as context:
+            view.perform_create(serializer)
+
+        self.assertIn('file', context.exception.detail)
+        self.assertFalse(ContractDocument.objects.filter(contract=contract).exists())
+
+    def test_upload_forbidden_file_type(self):
+        contract = self.create_contract()
+        self.client.force_authenticate(self.admin)
+        uploaded_file = SimpleUploadedFile(
+            'script.exe',
+            b'MZ',
+            content_type='application/x-msdownload',
+        )
+
+        response = self.client.post(
+            f'/api/contracts/{contract.id}/documents/',
+            {
+                'title': 'Executable file',
+                'document_type': 'draft',
+                'file': uploaded_file,
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('file', response.data)
+        self.assertFalse(ContractDocument.objects.filter(contract=contract).exists())

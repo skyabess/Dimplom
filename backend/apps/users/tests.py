@@ -46,6 +46,19 @@ class UserAuthApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertNotIn('access', response.data)
 
+    def test_inactive_user_cannot_login(self):
+        self.user.is_active = False
+        self.user.save(update_fields=['is_active'])
+
+        response = self.client.post(
+            '/api/auth/login/',
+            {'email': self.user.email, 'password': self.password},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertNotIn('access', response.data)
+
     def test_profile_requires_authentication(self):
         response = self.client.get('/api/auth/profile/')
 
